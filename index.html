@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>點餐大師 - 模組化互動教具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #050505;
+            color: #fff;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+
+        .hide-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #555 #1a1a1a;
+        }
+
+        /* 欄位標題與箭頭 */
+        .tab-header { text-align: center; font-weight: bold; padding: 0.4rem 0; font-size: 1.25rem; line-height: 1.75rem; position: relative; }
+        .tab-arrow-r, .tab-arrow-l { position:absolute; top:0; width:0; height:0; border-top:1.275rem solid transparent; border-bottom:1.275rem solid transparent; border-left:1rem solid; z-index:20; }
+        .tab-arrow-r { right:-1rem; }
+        .tab-arrow-l { left:0; }
+
+        /* 反白選取時的顏色 */
+        ::selection { background-color: #ed7d31; color: white; }
+
+        /* 左欄訂單中的品項 */
+        .order-items { user-select: text; }
+        .chip {
+            display: inline-block;
+            position: relative;
+            margin: 3px 3px;
+            padding: 0 7px;
+            border-radius: 5px;
+            border: 1px solid #4b5563;
+            background: rgba(0, 0, 0, 0.5);
+            color: #e5e7eb;
+            line-height: 1.75;
+            cursor: text;
+        }
+        /* 還沒有被任何套餐包含的品項：灰字 + 虛線框 */
+        .chip.uncov { border-style: dashed; border-color: #6b7280; color: #9ca3af; }
+        /* 已被套餐包含的品項：橘色標示 */
+        .chip.cov { background: rgba(234, 88, 12, 0.25); color: #fed7aa; border-color: rgba(234, 88, 12, 0.6); }
+        .mod-badge {
+            position: absolute;
+            top: -0.6rem;
+            left: -0.45rem;
+            width: 1.1rem;
+            height: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            background: #dc2626;
+            border: 1px solid #991b1b;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+            user-select: none;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .uncov-sample {
+            color: #fff;
+            font-weight: 700;
+            border: 1px dashed #6b7280;
+            border-radius: 4px;
+            padding: 0 4px;
+        }
+
+        /* 右上角的 ✕ 刪除鈕 */
+        .seq-del { position: absolute; top: -7px; right: -7px; width: 17px; height: 17px; border-radius: 9999px; background: #dc2626; border: 1px solid #7f1d1d; color: #fff; font-size: 10px; font-weight: 900; line-height: 15px; text-align: center; display: none; z-index: 2; }
+        .seq-del:hover { background: #ef4444; transform: scale(1.15); }
+        .tray-chip:hover .seq-del, .mod-row:hover .seq-del { display: block; }
+        /* 觸控裝置沒有「滑過」，✕ 一直顯示 */
+        @media (hover: none) { .tray-chip .seq-del, .mod-row .seq-del { display: block; } }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        .animate-pop { animation: pop 0.2s ease-in-out; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+    <!-- 提示訊息框 (Toast) -->
+    <div id="toastMessage" class="fixed top-5 left-1/2 -translate-x-1/2 transform bg-red-600 text-white font-bold px-6 py-3 rounded shadow-2xl z-50 transition-opacity duration-300 opacity-0 pointer-events-none max-w-[90vw] text-center"></div>
+
+    <!-- 確認視窗 -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/70 z-50 hidden items-center justify-center p-4">
+        <div class="bg-[#1a1a1a] border border-gray-700 rounded-xl p-5 max-w-sm w-full shadow-2xl">
+            <div id="confirmText" class="text-white text-lg mb-5 whitespace-pre-wrap leading-relaxed"></div>
+            <div class="flex justify-end gap-3">
+                <button onclick="hideConfirm()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded">取消</button>
+                <button id="confirmOk" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-5 rounded">刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 標題列：標題 + 成績 + 帳號 + 復原 -->
+    <header class="bg-[#111] px-3 py-2 border-b border-gray-800 flex items-center gap-3 z-10 shrink-0 shadow-md">
+        <h1 class="text-[1.875rem] leading-none font-black tracking-wider text-[#ffc72c] shrink-0">點餐大師</h1>
+        <nav id="scoreboard" class="flex-1 min-w-0 flex flex-wrap items-center gap-2"></nav>
+        <div id="accountInfo" class="hidden text-xs text-gray-400 text-right leading-tight shrink-0">
+            <div id="accountEmail"></div>
+            <div id="syncStatus"></div>
+        </div>
+        <button id="undoBtn" onclick="undo()" title="復原上一步 (Ctrl+Z)" class="shrink-0 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800 text-white text-sm font-bold py-1.5 px-4 rounded border border-gray-600 transition-colors">↶ 復原</button>
+    </header>
+
+    <!-- 三欄共用同一套格線：標題 / 上方提示 / 主要內容 / 下方資訊 -->
+    <main class="flex-1 min-h-0 grid grid-cols-3" style="grid-template-rows: auto auto minmax(0, 1fr) auto;">
+
+        <!-- 第 1 排：欄位標題 -->
+        <div class="tab-header bg-[#da291c] shadow-lg shadow-red-900/50 text-white z-10 relative">
+            1. 顧客訂單
+            <div class="tab-arrow-r" style="border-left-color:#da291c"></div>
+        </div>
+        <div class="tab-header bg-[#355c7d] shadow-lg shadow-blue-900/50 text-white z-10 relative">
+            <div class="tab-arrow-l" style="border-left-color:#0a0a0a"></div>
+            2. 定義套餐、單點
+            <div class="tab-arrow-r" style="border-left-color:#355c7d"></div>
+        </div>
+        <div class="tab-header bg-[#759e66] shadow-lg shadow-green-900/50 text-white z-10 relative">
+            <div class="tab-arrow-l" style="border-left-color:#111"></div>
+            3. 出餐（呼叫套餐）
+        </div>
+
+        <!-- 第 2 排：上方提示 -->
+        <div class="bg-[#0a0a0a] border-r border-gray-800 px-4 pt-3 flex flex-col">
+            <div class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-sm text-gray-400 font-medium">
+                💡 <span class="uncov-sample">虛線框</span>＝還沒有被任何套餐包含的品項
+            </div>
+        </div>
+        <div class="bg-[#111] border-r border-gray-800 px-4 pt-3 flex flex-col">
+            <div class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-sm text-gray-400 font-medium">
+                💡 在左側訂單<b class="text-gray-200">拖曳反白 2～3 個品項</b>就會建立套餐（最多 5 組）
+            </div>
+        </div>
+        <div class="bg-gray-950 px-4 pt-3 flex flex-col">
+            <div class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-sm text-gray-400 font-medium">
+                💡 點選右側某一單，再點中間的<b class="text-gray-200">套餐</b>或<b class="text-gray-200">單點</b>放進托盤
+            </div>
+        </div>
+
+        <!-- 第 3 排：主要內容 (左右兩欄同步捲動) -->
+        <div class="bg-[#0a0a0a] border-r border-gray-800 px-4 py-3 min-h-0 flex flex-col">
+            <div id="ordersScroll" class="flex-1 min-h-0 overflow-y-auto hide-scrollbar bg-[#111827] border border-gray-700 rounded p-2 shadow-inner">
+                <div id="ordersList" class="flex flex-col gap-1.5"></div>
+            </div>
+        </div>
+        <div class="bg-[#111] border-r border-gray-800 px-4 py-3 min-h-0 flex flex-col">
+            <div class="flex-1 min-h-0 overflow-y-auto hide-scrollbar flex flex-col gap-2 pr-1">
+                <div class="text-sm font-bold text-[#ffb480] flex items-center justify-between pt-1">
+                    <span>📦 套餐</span>
+                    <span id="moduleCountText" class="text-xs text-gray-400 font-normal"></span>
+                </div>
+                <div id="moduleList" class="flex flex-col gap-2 pt-1"></div>
+                <div class="text-sm font-bold text-gray-300 mt-2">🍽️ 單點品項</div>
+                <div id="menuContainer" class="flex flex-col gap-1.5 pb-1"></div>
+            </div>
+        </div>
+        <div class="bg-gray-950 px-4 py-3 min-h-0 flex flex-col">
+            <div id="trayScroll" class="flex-1 min-h-0 overflow-y-auto hide-scrollbar bg-[#111827] border border-gray-700 rounded p-2 shadow-inner">
+                <div id="trayList" class="flex flex-col gap-1.5"></div>
+            </div>
+        </div>
+
+        <!-- 第 4 排：各欄下方資訊 -->
+        <div class="bg-black border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center gap-3 text-sm text-gray-400 whitespace-nowrap">
+            <span>訂單 <b class="text-white text-xl">15</b> 張・共 <b id="totalItemsCount" class="text-white text-xl">0</b> 個品項</span>
+            <span class="text-gray-700">｜</span>
+            <span>套餐包含 <b id="coveragePercent" class="text-white text-xl">0</b>%</span>
+        </div>
+        <div class="bg-[#0a0a0a] border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center text-sm text-gray-400 whitespace-nowrap">
+            <span>已建立套餐 <b id="moduleCount" class="text-yellow-400 text-xl">0</b> / 5 組</span>
+        </div>
+        <div class="relative bg-black border-t border-gray-800 px-4 py-2 flex flex-col justify-center text-sm text-gray-400">
+            <!-- 過程中顯示完成進度；有錯顯示「錯誤請修正」；全部完成換成成功橫幅 -->
+            <div class="flex items-center gap-3 whitespace-nowrap h-9">
+                <div id="progressLine" class="flex-1 min-w-0 flex items-center gap-2">
+                    <span class="shrink-0">完成</span>
+                    <div class="flex-1 h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                        <div id="doneBar" class="h-full bg-sky-500 transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <span id="doneText" class="text-white font-bold w-14 text-right">0/15</span>
+                </div>
+                <div id="errorBox" class="hidden flex-1 min-w-0 rounded-lg px-3 py-1 text-center font-bold bg-red-900 text-white border border-red-700 overflow-hidden text-ellipsis"></div>
+                <div id="successBanner" class="hidden flex-1 min-w-0 rounded-lg px-3 py-0.5 text-lg text-center font-black bg-[#e8c338] text-black border border-yellow-500 shadow-[0_0_12px_rgba(232,195,56,0.5)] overflow-hidden text-ellipsis"></div>
+                <span class="shrink-0">點擊 <b id="clickCount" class="text-yellow-400 text-xl">0</b> 次</span>
+            </div>
+            <div class="absolute bottom-0.5 right-1.5 text-[9px] text-gray-700 leading-none pointer-events-none">桃園市建國國中詹智傑老師設計(2026)</div>
+        </div>
+    </main>
+
+    <script>
+        // ===================== 資料 =====================
+
+        const MENU_CATEGORIES = [
+            { title: '西式主餐', items: [
+                { id: 'm1', name: '卡啦雞腿堡' }, { id: 'm2', name: '生菜沙拉' },
+                { id: 'm3', name: '火腿蛋吐司' }, { id: 'm4', name: '巧克力厚片' } ] },
+            { title: '中式主餐', items: [
+                { id: 'm5', name: '原味蛋餅' }, { id: 'm6', name: '鮪魚蛋餅' },
+                { id: 'm7', name: '蛋炒飯' }, { id: 'm8', name: '鐵板麵' } ] },
+            { title: '中式點心', items: [
+                { id: 'm9', name: '蘿蔔糕' }, { id: 'm10', name: '蔥抓餅' },
+                { id: 'm11', name: '煎餃' }, { id: 'm12', name: '荷包蛋' } ] },
+            { title: '炸物小點', items: [
+                { id: 'm13', name: '炸雞塊' }, { id: 'm14', name: '熱狗' },
+                { id: 'm15', name: '黃金脆薯' }, { id: 'm16', name: '薯餅' } ] },
+            { title: '飲料區', items: [
+                { id: 'm17', name: '冰奶茶' }, { id: 'm18', name: '冰紅茶' },
+                { id: 'm19', name: '溫豆漿' }, { id: 'm20', name: '熱咖啡' } ] }
+        ];
+        const MENU_ITEMS = MENU_CATEGORIES.flatMap(cat => cat.items);
+        const itemName = (id) => (MENU_ITEMS.find(m => m.id === id) || {}).name || id;
+
+        // 15 張顧客訂單
+        const CUSTOMER_ORDERS = [
+            { id: 1, items: ['m8', 'm12', 'm17', 'm14'] },
+            { id: 2, items: ['m1', 'm15', 'm18'] },
+            { id: 3, items: ['m4', 'm20'] },
+            { id: 4, items: ['m5', 'm9', 'm19', 'm11'] },
+            { id: 5, items: ['m2', 'm12', 'm17'] },
+            { id: 6, items: ['m8', 'm12', 'm17'] },
+            { id: 7, items: ['m1', 'm15', 'm18', 'm2', 'm12'] },
+            { id: 8, items: ['m4', 'm20', 'm16'] },
+            { id: 9, items: ['m5', 'm9', 'm19'] },
+            { id: 10, items: ['m2', 'm12', 'm10'] },
+            { id: 11, items: ['m1', 'm15', 'm18', 'm13'] },
+            { id: 12, items: ['m4', 'm20', 'm11'] },
+            { id: 13, items: ['m5', 'm9', 'm19', 'm13'] },
+            { id: 14, items: ['m8', 'm12', 'm17', 'm16'] },
+            { id: 15, items: ['m2', 'm12', 'm9', 'm19'] }
+        ];
+        const TOTAL_ITEMS = CUSTOMER_ORDERS.reduce((s, o) => s + o.items.length, 0);
+
+        const MAX_MODULES = 5;      // 套餐數量上限
+        const MIN_ITEMS = 2;        // 每組套餐最少品項
+        const MAX_ITEMS = 3;        // 每組套餐最多品項
+        // 最少點擊次數 (電腦搜尋所有 5 組套餐的組合得到的最佳解)，達到即為「完美」
+        const PERFECT_CLICKS = 27;
+
+        // ===================== 狀態 =====================
+
+        let modules = [];   // [{id:'A', items:['m8','m12','m17']}]
+        let trays = CUSTOMER_ORDERS.map(() => []);  // 每一單的托盤 [{type:'module'|'item', ref}]
+        let activeOrder = 0;        // 目前選取的訂單 (出餐對象)
+        let history = [];           // 復原用的快照
+        let bestClicks = null;      // 全部完成時最少的點擊次數
+        let lastSolvedStamp = '';   // 最近一次全部完成的時間
+
+        // ===================== 共用小工具 =====================
+
+        const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+        let toastTimer1 = null, toastTimer2 = null;
+        function showMessage(text, type = 'error') {
+            const colors = { error: 'bg-red-600', info: 'bg-sky-600', success: 'bg-emerald-600' };
+            const toast = document.getElementById('toastMessage');
+            toast.className = `fixed top-5 left-1/2 -translate-x-1/2 transform ${colors[type] || colors.error} text-white font-bold px-6 py-3 rounded shadow-2xl z-50 transition-opacity duration-300 opacity-0 pointer-events-none max-w-[90vw] text-center`;
+            toast.innerText = text;
+            clearTimeout(toastTimer1);
+            clearTimeout(toastTimer2);
+            toastTimer1 = setTimeout(() => toast.classList.remove('opacity-0'), 10);
+            toastTimer2 = setTimeout(() => toast.classList.add('opacity-0'), 2500);
+        }
+
+        function askConfirm(text, onOk) {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmText').innerText = text;
+            document.getElementById('confirmOk').onclick = () => { hideConfirm(); onOk(); };
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function hideConfirm() {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // ===================== 復原 =====================
+
+        function snapshot() {
+            history.push(JSON.stringify({ modules, trays, activeOrder }));
+            if (history.length > 100) history.shift();
+        }
+
+        function undo() {
+            if (history.length === 0) {
+                showMessage('沒有可以復原的動作', 'info');
+                return;
+            }
+            const s = JSON.parse(history.pop());
+            modules = s.modules;
+            trays = s.trays;
+            activeOrder = s.activeOrder;
+            updateAll();
+            showMessage('已復原上一步', 'info');
+        }
+
+        function updateUndoBtn() {
+            document.getElementById('undoBtn').disabled = history.length === 0;
+        }
+
+        // ===================== 初始化 =====================
+
+        window.onload = () => {
+            // 拖曳反白放開時，立即定義套餐 (可能在訂單區外放開，所以監聽整個頁面)
+            document.addEventListener('mouseup', () => setTimeout(defineFromSelection, 0));
+            document.addEventListener('touchend', () => setTimeout(defineFromSelection, 0));
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    undo();
+                } else if (e.key === 'Escape') {
+                    hideConfirm();
+                }
+            });
+            linkScroll(document.getElementById('ordersScroll'), document.getElementById('trayScroll'));
+            window.addEventListener('resize', syncRowHeights);
+            document.getElementById('totalItemsCount').innerText = TOTAL_ITEMS;
+            renderMenu();
+            updateAll();
+            initAccount();
+        };
+
+        function updateAll() {
+            renderOrders();
+            renderModules();
+            renderTrays();
+            updateStats();
+            updateUndoBtn();
+            syncRowHeights();
+        }
+
+        // ===================== 左右兩欄同步捲動、列高對齊 =====================
+
+        function linkScroll(a, b) {
+            let leader = null, timer = null;
+            const follow = (src, dst) => () => {
+                if (leader && leader !== src) return; // 被帶動的捲動，不再反向帶動
+                leader = src;
+                dst.scrollTop = src.scrollTop;
+                clearTimeout(timer);
+                timer = setTimeout(() => { leader = null; }, 100);
+            };
+            a.addEventListener('scroll', follow(a, b));
+            b.addEventListener('scroll', follow(b, a));
+        }
+
+        // 讓左邊的訂單和右邊的托盤每一列一樣高，捲動時才能逐單對齊
+        function syncRowHeights() {
+            const L = document.querySelectorAll('#ordersList > [data-row]');
+            const R = document.querySelectorAll('#trayList > [data-row]');
+            L.forEach((l, i) => { l.style.minHeight = ''; R[i].style.minHeight = ''; });
+            L.forEach((l, i) => {
+                const h = Math.max(l.offsetHeight, R[i].offsetHeight);
+                l.style.minHeight = R[i].style.minHeight = h + 'px';
+            });
+        }
+
+        // ===================== 判定 =====================
+
+        // 把托盤展開成品項清單
+        function trayItems(i) {
+            const list = [];
+            trays[i].forEach(p => {
+                if (p.type === 'item') list.push(p.ref);
+                else {
+                    const mod = modules.find(m => m.id === p.ref);
+                    if (mod) list.push(...mod.items);
+                }
+            });
+            return list;
+        }
+
+        // 每一單的狀態：empty (空) / partial (還沒完成，但目前都對) / done (完成) / error (有多餘或不對的品項)
+        function orderStatus(i) {
+            if (trays[i].length === 0) return 'empty';
+            const need = {};
+            CUSTOMER_ORDERS[i].items.forEach(id => { need[id] = (need[id] || 0) + 1; });
+            for (const id of trayItems(i)) {
+                if (!need[id]) return 'error';
+                need[id]--;
+            }
+            return Object.values(need).every(n => n === 0) ? 'done' : 'partial';
+        }
+
+        // 從 from 的下一單開始，找還沒完成的訂單 (繞一圈)
+        function nextIncomplete(from) {
+            const n = CUSTOMER_ORDERS.length;
+            for (let k = 1; k <= n; k++) {
+                const i = (from + k) % n;
+                if (orderStatus(i) !== 'done') return i;
+            }
+            return null;
+        }
+
+        // 找出每張訂單中，每個品項屬於哪個套餐 (品項多的套餐優先，不重疊)
+        function computeCoverage() {
+            const sorted = [...modules].sort((a, b) => b.items.length - a.items.length || a.id.localeCompare(b.id));
+            return CUSTOMER_ORDERS.map(o => {
+                const owner = o.items.map(() => null);
+                sorted.forEach(mod => {
+                    const idxs = mod.items.map(it => o.items.findIndex((x, k) => x === it && owner[k] === null));
+                    if (idxs.every(k => k >= 0)) idxs.forEach(k => { owner[k] = mod.id; });
+                });
+                return owner;
+            });
+        }
+
+        // ===================== 1. 左欄：顧客訂單、反白定義套餐 =====================
+
+        function renderOrders() {
+            const cov = computeCoverage();
+            const list = document.getElementById('ordersList');
+            list.innerHTML = CUSTOMER_ORDERS.map((o, i) => {
+                const st = orderStatus(i);
+                const active = i === activeOrder;
+                const cls = active ? 'border-[#ffc72c] bg-yellow-900/20'
+                    : st === 'done' ? 'border-green-800/60 bg-green-900/10'
+                    : 'border-gray-800 bg-gray-900/40';
+                const chips = o.items.map((it, k) => {
+                    const m = cov[i][k];
+                    return `<span class="chip ${m ? 'cov' : 'uncov'}" data-o="${i}" data-k="${k}">${m ? `<span class="mod-badge">${m}</span>` : ''}${esc(itemName(it))}</span>`;
+                }).join('');
+                return `<div data-row="${i}" onclick="clickOrderCard(${i})" class="flex items-center gap-2 px-1.5 py-1 rounded-lg border-2 transition-colors ${cls}">
+                    <div class="w-7 shrink-0 text-center leading-none">
+                        <div class="${active ? 'text-[#ffc72c] font-black' : 'text-gray-300 font-bold'} text-xl">${o.id}</div>
+                        ${st === 'done' ? '<div class="text-green-500 text-[10px] font-bold mt-0.5">✔</div>' : ''}
+                    </div>
+                    <div class="order-items flex-1 text-base py-1">${chips}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // 點左邊的訂單 (不是拖曳反白) 也能選取這一單
+        function clickOrderCard(i) {
+            const sel = window.getSelection();
+            if (sel && !sel.isCollapsed) return;
+            selectOrder(i);
+        }
+
+        // 找出反白範圍碰到的品項
+        function selectionToChips() {
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+            const box = document.getElementById('ordersList');
+            const range = sel.getRangeAt(0);
+            if (!range.intersectsNode(box)) return null;
+            const hit = [];
+            box.querySelectorAll('.chip').forEach(span => {
+                const r = document.createRange();
+                r.selectNodeContents(span);
+                if (range.compareBoundaryPoints(Range.END_TO_START, r) < 0 &&
+                    range.compareBoundaryPoints(Range.START_TO_END, r) > 0) {
+                    hit.push({ o: Number(span.dataset.o), k: Number(span.dataset.k) });
+                }
+            });
+            return hit.length ? hit : null;
+        }
+
+        // 放開滑鼠時：若反白了訂單中的品項，就直接定義成套餐
+        function defineFromSelection() {
+            const hit = selectionToChips();
+            if (!hit) return;
+            window.getSelection().removeAllRanges();
+
+            const orderIdxs = [...new Set(hit.map(h => h.o))];
+            if (orderIdxs.length > 1) {
+                showMessage('一次只能反白同一張訂單裡的品項');
+                return;
+            }
+            if (hit.length < MIN_ITEMS || hit.length > MAX_ITEMS) {
+                showMessage(`套餐要包含 ${MIN_ITEMS}～${MAX_ITEMS} 個品項，你選了 ${hit.length} 個`, hit.length < MIN_ITEMS ? 'info' : 'error');
+                return;
+            }
+
+            // 不允許選到已經屬於某個套餐的品項
+            const cov = computeCoverage();
+            const overlapIds = [...new Set(hit.map(h => cov[h.o][h.k]).filter(Boolean))];
+            if (overlapIds.length > 0) {
+                showMessage(`選到的品項已經屬於套餐 ${overlapIds.join('、')}，請選虛線框的品項`);
+                return;
+            }
+
+            if (modules.length >= MAX_MODULES) {
+                showMessage(`最多只能建立 ${MAX_MODULES} 組套餐，可以先刪除再建立`);
+                return;
+            }
+
+            const items = hit.map(h => CUSTOMER_ORDERS[h.o].items[h.k]);
+            const key = [...items].sort().join(',');
+            const dup = modules.find(m => [...m.items].sort().join(',') === key);
+            if (dup) {
+                showMessage(`這個組合已經是套餐 ${dup.id} 了`, 'info');
+                return;
+            }
+
+            const usedIds = modules.map(m => m.id);
+            let nextId = null;
+            for (let c = 65; c <= 90; c++) {
+                const ch = String.fromCharCode(c);
+                if (!usedIds.includes(ch)) { nextId = ch; break; }
+            }
+
+            snapshot();
+            modules.push({ id: nextId, items });
+            modules.sort((a, b) => a.id.localeCompare(b.id));
+            updateAll();
+            showMessage(`已建立套餐 ${nextId}`, 'success');
+        }
+
+        // ===================== 2. 中欄：套餐清單、單點菜單 =====================
+
+        function removeModule(id) {
+            const mod = modules.find(m => m.id === id);
+            if (!mod) return;
+            const uses = trays.reduce((s, t) => s + t.filter(p => p.type === 'module' && p.ref === id).length, 0);
+            let msg = `確定要刪除套餐 ${id}「${mod.items.map(itemName).join('＋')}」嗎？`;
+            if (uses > 0) msg += `\n\n托盤中的 ${uses} 個套餐 ${id} 也會一起移除。`;
+            askConfirm(msg, () => {
+                snapshot();
+                modules = modules.filter(m => m.id !== id);
+                trays = trays.map(t => t.filter(p => !(p.type === 'module' && p.ref === id)));
+                updateAll();
+                showMessage(`已刪除套餐 ${id}，按「↶ 復原」可以救回來`, 'info');
+            });
+        }
+
+        function renderModules() {
+            const list = document.getElementById('moduleList');
+            document.getElementById('moduleCountText').innerText = `${modules.length} / ${MAX_MODULES} 組`;
+            list.innerHTML = '';
+
+            if (modules.length === 0) {
+                list.innerHTML = '<div class="text-gray-600 text-center text-sm py-3 w-full border-2 border-dashed border-gray-800 rounded-lg">尚未建立，請在左側訂單拖曳反白</div>';
+                return;
+            }
+
+            modules.forEach(mod => {
+                const row = document.createElement('div');
+                row.className = 'mod-row relative w-full flex items-stretch bg-[#2a1a0d] border border-[#e27a3f] rounded-lg shadow-md shrink-0';
+
+                const btn = document.createElement('button');
+                btn.className = 'flex-1 min-w-0 flex items-center text-left hover:bg-[#e27a3f] p-1.5 rounded-lg transition-colors group';
+                btn.title = `呼叫套餐 ${mod.id}`;
+                btn.onclick = () => callPiece('module', mod.id, btn);
+
+                const idSpan = document.createElement('span');
+                idSpan.className = 'text-[#ffb480] group-hover:text-white font-black text-2xl w-9 shrink-0 text-center transition-colors';
+                idSpan.textContent = mod.id;
+
+                const itemsWrap = document.createElement('span');
+                itemsWrap.className = 'border-l border-[#e27a3f]/50 group-hover:border-white/50 pl-2 ml-1 flex-1 min-w-0 flex flex-wrap gap-1 transition-colors';
+                itemsWrap.innerHTML = mod.items.map(it => `<span class="text-base bg-black/40 text-gray-100 border border-gray-700 px-2 rounded">${esc(itemName(it))}</span>`).join('');
+
+                btn.appendChild(idSpan);
+                btn.appendChild(itemsWrap);
+
+                const del = document.createElement('button');
+                del.className = 'seq-del';
+                del.textContent = '✕';
+                del.title = `刪除套餐 ${mod.id}`;
+                del.onclick = () => removeModule(mod.id);
+
+                row.appendChild(btn);
+                row.appendChild(del);
+                list.appendChild(row);
+            });
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menuContainer');
+            container.innerHTML = '';
+            MENU_CATEGORIES.forEach(cat => {
+                const wrap = document.createElement('div');
+                wrap.className = 'flex items-stretch bg-gray-900/30 rounded-lg border border-gray-800 p-1 gap-1';
+
+                const title = document.createElement('div');
+                title.className = 'w-9 shrink-0 flex items-center justify-center border-r border-gray-800 pr-1';
+                title.innerHTML = `<div class="grid grid-cols-2 gap-y-0.5 text-xs font-bold text-gray-400 leading-none text-center">${cat.title.split('').map(c => `<span>${c}</span>`).join('')}</div>`;
+                wrap.appendChild(title);
+
+                const grid = document.createElement('div');
+                grid.className = 'flex-1 grid grid-cols-4 gap-1';
+                cat.items.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'flex items-center justify-center px-1 py-1 rounded-lg border-2 bg-gray-800 border-gray-700 hover:bg-gray-600 hover:border-gray-400 text-gray-200 text-sm font-bold leading-tight shadow-md active:scale-95 transition-all select-none';
+                    btn.textContent = item.name;
+                    btn.title = `單點 ${item.name}`;
+                    btn.onclick = () => callPiece('item', item.id, btn);
+                    grid.appendChild(btn);
+                });
+                wrap.appendChild(grid);
+                container.appendChild(wrap);
+            });
+        }
+
+        // ===================== 3. 右欄：出餐 =====================
+
+        function selectOrder(i) {
+            if (activeOrder === i) return;
+            activeOrder = i;
+            updateAll();
+        }
+
+        // 把套餐或單點放進目前選取那一單的托盤
+        function callPiece(type, ref, btn) {
+            if (activeOrder === null) {
+                const next = nextIncomplete(CUSTOMER_ORDERS.length - 1);
+                if (next === null) {
+                    showMessage('15 單都完成了！要修改請先點選右側某一單', 'info');
+                    return;
+                }
+                activeOrder = next;
+            }
+            if (btn) {
+                btn.classList.add('animate-pop');
+                setTimeout(() => btn.classList.remove('animate-pop'), 200);
+            }
+
+            snapshot();
+            const i = activeOrder;
+            trays[i].push({ type, ref });
+            const st = orderStatus(i);
+            if (st === 'done') {
+                activeOrder = nextIncomplete(i);
+                showMessage(`第 ${CUSTOMER_ORDERS[i].id} 單出餐正確！`, 'success');
+            } else if (st === 'error') {
+                showMessage(`第 ${CUSTOMER_ORDERS[i].id} 單的餐點不對，請點 ✕ 移除`);
+            }
+            updateAll();
+            scrollToActive();
+        }
+
+        function removeTrayPiece(i, j) {
+            snapshot();
+            trays[i].splice(j, 1);
+            activeOrder = i;
+            updateAll();
+        }
+
+        function scrollToActive() {
+            if (activeOrder === null) return;
+            const row = document.querySelector(`#trayList > [data-row="${activeOrder}"]`);
+            if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+
+        function renderTrays() {
+            const list = document.getElementById('trayList');
+            list.innerHTML = '';
+            CUSTOMER_ORDERS.forEach((o, i) => {
+                const st = orderStatus(i);
+                const active = i === activeOrder;
+                const row = document.createElement('div');
+                row.dataset.row = i;
+                row.className = 'flex items-center gap-2 px-1.5 py-1 rounded-lg border-2 cursor-pointer transition-colors ' + (
+                    active ? 'border-[#ffc72c] bg-yellow-900/20 shadow-[0_0_12px_rgba(255,199,44,0.2)]'
+                    : st === 'done' ? 'border-green-700/70 bg-green-900/15'
+                    : st === 'error' ? 'border-red-700 bg-red-900/20'
+                    : 'border-gray-800 bg-gray-900/40 hover:border-gray-600');
+                row.onclick = () => selectOrder(i);
+
+                const num = document.createElement('div');
+                num.className = `w-7 shrink-0 text-center text-xl leading-none ${active ? 'text-[#ffc72c] font-black' : 'text-gray-300 font-bold'}`;
+                num.textContent = o.id;
+                row.appendChild(num);
+
+                const box = document.createElement('div');
+                box.className = 'flex-1 min-w-0 flex flex-wrap items-center gap-1.5 py-1';
+                if (trays[i].length === 0) {
+                    box.innerHTML = active
+                        ? '<span class="text-gray-400 text-sm">👈 點中間的套餐或單點</span>'
+                        : '<span class="text-gray-700 text-sm">—</span>';
+                }
+                trays[i].forEach((p, j) => {
+                    const chip = document.createElement('span');
+                    if (p.type === 'module') {
+                        const mod = modules.find(m => m.id === p.ref);
+                        chip.className = 'tray-chip relative bg-gradient-to-r from-[#e27a3f] to-[#d35400] text-white font-black text-base px-2.5 rounded border border-[#ffb480]/50 shadow-md leading-[1.75]';
+                        chip.textContent = `📦 ${p.ref}`;
+                        if (mod) chip.title = mod.items.map(itemName).join('＋');
+                    } else {
+                        chip.className = 'tray-chip relative bg-gray-800 border border-gray-500 text-white text-base px-2 rounded shadow-md leading-[1.75]';
+                        chip.textContent = itemName(p.ref);
+                    }
+                    const del = document.createElement('button');
+                    del.className = 'seq-del';
+                    del.textContent = '✕';
+                    del.title = '從托盤移除';
+                    del.onclick = (e) => { e.stopPropagation(); removeTrayPiece(i, j); };
+                    chip.appendChild(del);
+                    box.appendChild(chip);
+                });
+                row.appendChild(box);
+
+                const mark = document.createElement('div');
+                mark.className = 'w-6 shrink-0 text-center text-lg';
+                mark.textContent = st === 'done' ? '✅' : st === 'error' ? '❌' : '';
+                row.appendChild(mark);
+
+                list.appendChild(row);
+            });
+        }
+
+        // ===================== 統計與成績 =====================
+
+        function updateStats() {
+            const total = CUSTOMER_ORDERS.length;
+            const statuses = CUSTOMER_ORDERS.map((_, i) => orderStatus(i));
+            const doneCount = statuses.filter(s => s === 'done').length;
+            const errorOrders = CUSTOMER_ORDERS.filter((_, i) => statuses[i] === 'error').map(o => o.id);
+            const clicks = trays.reduce((s, t) => s + t.length, 0);
+
+            // 套餐包含的品項比例
+            const cov = computeCoverage();
+            const covered = cov.reduce((s, row) => s + row.filter(Boolean).length, 0);
+            document.getElementById('coveragePercent').innerText = Math.floor(covered / TOTAL_ITEMS * 100);
+            document.getElementById('moduleCount').innerText = modules.length;
+
+            document.getElementById('clickCount').innerText = clicks;
+            const pct = Math.floor(doneCount / total * 100);
+            const bar = document.getElementById('doneBar');
+            bar.style.width = pct + '%';
+            bar.className = 'h-full transition-all duration-300 ' + (doneCount === total ? 'bg-emerald-500' : 'bg-sky-500');
+            document.getElementById('doneText').innerText = `${doneCount}/${total}`;
+
+            let state = 'progress';
+            if (errorOrders.length > 0) {
+                state = 'error';
+                document.getElementById('errorBox').innerText = `❌ 第 ${errorOrders.join('、')} 單有錯，請修正`;
+            } else if (doneCount === total) {
+                state = 'solved';
+                if (bestClicks === null || clicks < bestClicks) {
+                    bestClicks = clicks;
+                    const now = new Date();
+                    const p2 = (n) => String(n).padStart(2, '0');
+                    lastSolvedStamp = `${now.getMonth() + 1}/${now.getDate()} ${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
+                    syncScores();
+                }
+                document.getElementById('successBanner').innerHTML = clicks <= PERFECT_CLICKS
+                    ? `🏆 完美出餐！只用<span class="text-3xl text-red-600 mx-1 leading-none">${clicks}</span>次`
+                    : `15 單全部完成，共<span class="text-3xl text-red-600 mx-1 leading-none">${clicks}</span>次`;
+            }
+            document.getElementById('progressLine').classList.toggle('hidden', state !== 'progress');
+            document.getElementById('errorBox').classList.toggle('hidden', state !== 'error');
+            document.getElementById('successBanner').classList.toggle('hidden', state !== 'solved');
+
+            renderScoreboard();
+        }
+
+        // 分數：未完成 0 分；15 單全部完成 15 分；達到最少點擊次數 20 分
+        function taskPoints() {
+            if (bestClicks === null) return 0;
+            return bestClicks <= PERFECT_CLICKS ? 20 : 15;
+        }
+
+        function renderScoreboard() {
+            const pts = taskPoints();
+            let cls, status, pointsTag = '';
+            if (bestClicks !== null) {
+                if (bestClicks <= PERFECT_CLICKS) {
+                    cls = 'bg-yellow-500 border-yellow-300 text-black';
+                    status = `完美 <b>${bestClicks}</b> 次`;
+                    pointsTag = `<span class="text-red-600 ml-1">${pts}分</span>`;
+                } else {
+                    cls = 'bg-yellow-500/15 border-yellow-500 text-yellow-300';
+                    status = `最佳 <b class="text-white">${bestClicks}</b> 次`;
+                    pointsTag = `<span class="text-red-500 ml-1">${pts}分</span>`;
+                }
+            } else {
+                const started = modules.length > 0 || trays.some(t => t.length > 0);
+                cls = 'bg-gray-800/60 border-gray-700 text-gray-400';
+                status = started ? '進行中' : '未挑戰';
+            }
+            document.getElementById('scoreboard').innerHTML =
+                `<span class="text-gray-400 text-sm font-bold shrink-0 mr-1">🏆 任務</span>` +
+                `<span class="border rounded-lg px-3 py-0.5 text-sm leading-tight text-center whitespace-nowrap ring-2 ring-orange-500 ring-offset-1 ring-offset-black ${cls}"><span class="block font-bold">早餐店 15 單${pointsTag}</span><span class="block text-xs">${status}</span></span>` +
+                `<span class="shrink-0 ml-1 text-red-500 font-black text-lg">總分 ${pts} 分</span>` +
+                `<span class="ml-auto text-sm text-gray-400 shrink-0">點擊越少，分數越高${lastSolvedStamp ? `<span class="text-xs text-gray-500 ml-2">${lastSolvedStamp}</span>` : ''}</span>`;
+        }
+
+        // ===================== 上傳成績到老師的試算表 =====================
+        // 只有透過 Google Apps Script 網頁應用程式開啟時才會上傳；
+        // 直接開啟 HTML 檔 (或放在 GitHub) 時不會上傳，其他功能照常。
+
+        const hasServer = typeof google !== 'undefined' && !!google.script && !!google.script.run;
+        let userEmail = '';
+
+        function setSyncStatus(text, color) {
+            const el = document.getElementById('syncStatus');
+            el.textContent = text;
+            el.className = color || 'text-gray-400';
+        }
+
+        function initAccount() {
+            if (!hasServer) return;
+            document.getElementById('accountInfo').classList.remove('hidden');
+            setSyncStatus('讀取帳號中…');
+            google.script.run
+                .withSuccessHandler(email => {
+                    userEmail = email;
+                    if (email) {
+                        document.getElementById('accountEmail').textContent = '👤 ' + email;
+                        setSyncStatus('完成 15 單後，成績會自動上傳');
+                    } else {
+                        document.getElementById('accountEmail').textContent = '⚠️ 未取得學校帳號';
+                        setSyncStatus('成績不會上傳，請改用學校帳號登入', 'text-amber-400');
+                    }
+                })
+                .withFailureHandler(() => setSyncStatus('⚠️ 無法連線，成績不會上傳', 'text-amber-400'))
+                .getUserEmail();
+        }
+
+        function syncScores() {
+            if (!hasServer || !userEmail) return;
+            setSyncStatus('☁️ 成績上傳中…', 'text-sky-300');
+            google.script.run
+                .withSuccessHandler(res => {
+                    const best = res && typeof res.best === 'number' ? res.best : bestClicks;
+                    setSyncStatus(`☁️ 成績已上傳（最佳 ${best} 次）`, 'text-emerald-400');
+                })
+                .withFailureHandler(err => {
+                    setSyncStatus('⚠️ 上傳失敗，下次完成時會再試', 'text-red-400');
+                    showMessage('成績上傳失敗：' + (err && err.message ? err.message : '請檢查網路'));
+                })
+                .saveScores({ clicks: bestClicks });
+        }
+    </script>
+</body>
+</html>
