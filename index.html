@@ -60,6 +60,16 @@
             white-space: nowrap;
         }
         .mod-group .chip { margin: 1px 2px; }
+        /* 套餐代號：字放大一倍 */
+        .mod-group { margin-top: 14px; margin-left: 10px; }
+        .mod-group .mod-badge {
+            top: -1rem;
+            left: -0.85rem;
+            width: 1.75rem;
+            height: 1.75rem;
+            font-size: 20px;
+            border-width: 2px;
+        }
         /* 還沒有被任何套餐包含的品項：灰字 + 虛線框 */
         .chip.uncov { border-style: dashed; border-color: #6b7280; color: #9ca3af; }
         /* 已被套餐包含的品項：橘色標示 */
@@ -134,7 +144,7 @@
     </header>
 
     <!-- 三欄共用同一套格線：標題 / 上方提示 / 主要內容 / 下方資訊 -->
-    <main class="flex-1 min-h-0 grid" style="grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto;">
+    <main class="flex-1 min-h-0 grid" style="grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); grid-template-rows: auto auto minmax(0, 1fr) auto;">
 
         <!-- 第 1 排：欄位標題 -->
         <div class="tab-header bg-[#da291c] shadow-lg shadow-red-900/50 text-white z-10 relative">
