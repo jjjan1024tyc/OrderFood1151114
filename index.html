@@ -138,12 +138,12 @@
 
         <!-- 第 1 排：欄位標題 -->
         <div class="tab-header bg-[#da291c] shadow-lg shadow-red-900/50 text-white z-10 relative">
-            1. 顧客訂單
+            1. 常見顧客訂單
             <div class="tab-arrow-r" style="border-left-color:#da291c"></div>
         </div>
         <div class="tab-header bg-[#355c7d] shadow-lg shadow-blue-900/50 text-white z-10 relative">
             <div class="tab-arrow-l" style="border-left-color:#0a0a0a"></div>
-            2. 定義套餐、單點
+            2. 定義套餐
             <div class="tab-arrow-r" style="border-left-color:#355c7d"></div>
         </div>
         <div class="tab-header bg-[#759e66] shadow-lg shadow-green-900/50 text-white z-10 relative">
@@ -223,8 +223,8 @@
 
         const MENU_CATEGORIES = [
             { title: '西式主餐', items: [
-                { id: 'm1', name: '卡啦雞腿堡' }, { id: 'm2', name: '生菜沙拉' },
-                { id: 'm3', name: '火腿蛋吐司' }, { id: 'm4', name: '巧克力厚片' } ] },
+                { id: 'm1', name: '豬排漢堡' }, { id: 'm2', name: '生菜沙拉' },
+                { id: 'm3', name: '火腿蛋吐司' }, { id: 'm4', name: '花生厚片' } ] },
             { title: '中式主餐', items: [
                 { id: 'm5', name: '原味蛋餅' }, { id: 'm6', name: '鮪魚蛋餅' },
                 { id: 'm7', name: '蛋炒飯' }, { id: 'm8', name: '鐵板麵' } ] },
@@ -623,7 +623,7 @@
                 grid.className = 'flex-1 grid grid-cols-4 gap-1';
                 cat.items.forEach(item => {
                     const btn = document.createElement('button');
-                    btn.className = 'flex items-center justify-center px-1 py-1 rounded-lg border-2 bg-gray-800 border-gray-700 hover:bg-gray-600 hover:border-gray-400 text-gray-200 text-[1.05rem] font-bold leading-tight whitespace-nowrap shadow-md active:scale-95 transition-all select-none';
+                    btn.className = 'flex items-center justify-center px-1 py-1 rounded-lg border-2 bg-gray-800 border-gray-700 hover:bg-gray-600 hover:border-gray-400 text-gray-200 text-[1.2rem] font-bold leading-tight whitespace-nowrap shadow-md active:scale-95 transition-all select-none';
                     btn.textContent = item.name;
                     btn.title = `單點 ${item.name}`;
                     btn.onclick = () => callPiece('item', item.id, btn);
