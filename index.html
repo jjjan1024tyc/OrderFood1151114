@@ -257,6 +257,14 @@
         </div>
     </main>
 
+    <!-- 第 2 關還沒解鎖時：內容是空的，只顯示提醒 -->
+    <section id="lockPanel" class="hidden flex-1 min-h-0 flex-col items-center justify-center gap-4 bg-[#0a0a0a] text-center px-4">
+        <div class="text-7xl">🔒</div>
+        <div class="text-3xl font-black text-[#ffc72c]">請先完成第 1 關</div>
+        <div class="text-gray-300 text-xl leading-relaxed">完成第 1 關的 15 單後，<br>按右下角的「<b class="text-white">進入第 2 關 ▶</b>」才能開始第 2 關。</div>
+        <button onclick="viewStage(1)" class="mt-2 bg-[#759e66] hover:bg-[#5a7d4e] text-white text-xl font-black py-2 px-8 rounded-full shadow-lg">◀ 回到第 1 關</button>
+    </section>
+
     <!-- 第 3 關：概念對照 (把 Scratch 選項拖到表格中) -->
     <section id="quizPanel" class="hidden flex-1 min-h-0 overflow-y-auto hide-scrollbar bg-[#0a0a0a]">
         <div class="max-w-5xl mx-auto px-4 py-5 flex flex-col gap-4">
@@ -304,7 +312,7 @@
             { id: 4, items: ['m5', 'm9', 'm19', 'm11'] },
             { id: 5, items: ['m2', 'm12', 'm17'] },
             { id: 6, items: ['m8', 'm12', 'm17'] },
-            { id: 7, items: ['m1', 'm15', 'm18', 'm12'] },
+            { id: 7, items: ['m1', 'm18', 'm12'] },
             { id: 8, items: ['m4', 'm20', 'm16'] },
             { id: 9, items: ['m5', 'm9', 'm19'] },
             { id: 10, items: ['m2', 'm12', 'm10'] },
@@ -332,7 +340,7 @@
 
         // perfect：電腦搜尋所有可能的 5 組套餐後得到的最少點擊次數，達到即為「完美」
         const STAGES = {
-            1: { name: '今天 15 單', orders: TODAY_ORDERS, perfect: 27, baseline: sumItems(TODAY_ORDERS) },
+            1: { name: '今天 15 單', orders: TODAY_ORDERS, perfect: 28, baseline: sumItems(TODAY_ORDERS) },
             2: { name: '明天 10 單', orders: TOMORROW_ORDERS, perfect: 19, baseline: sumItems(TOMORROW_ORDERS) },
             3: { name: '概念對照' }
         };
@@ -398,7 +406,9 @@
             lastSolvedStamp = `${now.getMonth() + 1}/${now.getDate()} ${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
         }
 
-        const isEditable = () => stage === unlocked;            // 目前這一關還可以操作
+        // 目前這一關還可以操作 (第 3 關隨時可以作答，送出後鎖定)
+        const isEditable = () => stage === 3 ? !quiz.submitted : stage === unlocked;
+        const isLockedView = () => stage === 2 && unlocked < 2;  // 第 1 關還沒完成就點開第 2 關
         const canDefine = () => stage === 1 && unlocked === 1;  // 只有第 1 關可以建立、刪除套餐
         const canServe = () => isEditable() && stage < 3;       // 第 1、2 關可以出餐
 
@@ -453,7 +463,7 @@
         }
 
         function undo() {
-            if (stage === 3) return;
+            if (stage === 3 || isLockedView()) return;
             if (history.length === 0) {
                 showMessage('沒有可以復原的動作', 'info');
                 return;
@@ -467,7 +477,7 @@
         }
 
         function updateUndoBtn() {
-            document.getElementById('undoBtn').disabled = stage === 3 || history.length === 0;
+            document.getElementById('undoBtn').disabled = stage === 3 || isLockedView() || history.length === 0;
         }
 
         // ===================== 初始化 =====================
@@ -500,8 +510,17 @@
 
         function updateAll() {
             const isQuiz = stage === 3;
-            document.getElementById('mainGrid').classList.toggle('hidden', isQuiz);
+            const isLock = isLockedView();
+            document.getElementById('mainGrid').classList.toggle('hidden', isQuiz || isLock);
             document.getElementById('quizPanel').classList.toggle('hidden', !isQuiz);
+            const lockPanel = document.getElementById('lockPanel');
+            lockPanel.classList.toggle('hidden', !isLock);
+            lockPanel.classList.toggle('flex', isLock);
+            if (isLock) {
+                renderScoreboard();
+                updateUndoBtn();
+                return;
+            }
             if (isQuiz) {
                 renderQuiz();
                 renderScoreboard();
@@ -520,13 +539,14 @@
 
         // ===================== 關卡切換 =====================
 
+        // 只儲存真正在進行的第 1、2 關 (第 2 關還沒解鎖時畫面是空的，不用存)
         function saveStage() {
-            if (stage < 3) stageData[stage] = { modules, trays, activeOrder, history };
+            if (stage === 1 || (stage === 2 && unlocked >= 2)) stageData[stage] = { modules, trays, activeOrder, history };
         }
 
         function loadStage(s) {
             stage = s;
-            if (s === 3) return;
+            if (s === 3 || !stageData[s]) return;
             orders = STAGES[s].orders;
             const d = stageData[s];
             modules = d.modules;
@@ -538,14 +558,10 @@
         // 點標題列的關卡切換查看
         function viewStage(s) {
             if (s === stage) return;
-            if (s > unlocked) {
-                showMessage(`完成第 ${s - 1} 關後才能進入第 ${s} 關`, 'info');
-                return;
-            }
             saveStage();
             loadStage(s);
             updateAll();
-            if (s < 3) {
+            if (s < 3 && !isLockedView()) {
                 document.getElementById('ordersScroll').scrollTop = 0;
                 document.getElementById('trayScroll').scrollTop = 0;
             }
@@ -570,7 +586,7 @@
                     document.getElementById('ordersScroll').scrollTop = 0;
                     document.getElementById('trayScroll').scrollTop = 0;
                     showInfo('第 2 關：明天的新訂單', `明天來了 <b class="text-white">10 張新訂單</b>！<br>點餐機螢幕上的 5 個套餐按鈕<b class="text-[#ffc72c]">已經固定，不能修改</b>。<br><br>看看你昨天設計的套餐，明天還好不好用？<br><span class="text-gray-400 text-base">（全部單點要 ${STAGES[2].baseline} 次）</span>`);
-                } else {
+                } else if (!quiz.submitted) {
                     showInfo('第 3 關：概念對照', `你剛剛設計套餐、用套餐出餐，其實就是程式設計裡的「<b class="text-white">模組化</b>」！<br><br>請把 <b class="text-sky-300">Scratch 選項</b>拖到表格中正確的位置，<br>答對一題 4 分，全對 20 分。`);
                 }
             }, `進入第 ${next} 關`, 'bg-[#759e66] hover:bg-[#5a7d4e]');
@@ -1124,9 +1140,9 @@
                 const ring = s === stage ? ' ring-2 ring-orange-500 ring-offset-1 ring-offset-black' : '';
                 const perfect = b !== null && (s === 3 ? b === QUIZ_ROWS.length : b <= STAGES[s].perfect);
                 let cls, status, pointsTag = '';
-                if (s > unlocked) {
-                    cls = 'bg-gray-900 border-gray-800 text-gray-600 cursor-not-allowed';
-                    status = '🔒 未解鎖';
+                if (s === 2 && unlocked < 2) {
+                    cls = 'bg-gray-900 border-gray-700 text-gray-500 hover:bg-gray-800';
+                    status = '🔒 先完成第 1 關';
                 } else if (b !== null) {
                     const value = s === 3 ? `答對 <b>${b}</b>/${QUIZ_ROWS.length}` : `<b>${b}</b> 次`;
                     if (perfect) {
@@ -1140,7 +1156,7 @@
                     }
                 } else {
                     cls = 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-700';
-                    status = '進行中';
+                    status = s === 3 ? '未作答' : '進行中';
                 }
                 html += `<button onclick="viewStage(${s})" class="border rounded-lg px-3 py-0.5 text-sm leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}${pointsTag}</span><span class="block text-xs">${status}</span></button>`;
             });
@@ -1215,7 +1231,7 @@
         let qdrag = null;   // { opt, from (格子編號或 null=選項區), ghost, src }
 
         function quizDown(e) {
-            if (stage !== 3 || quiz.submitted || !isEditable()) return;
+            if (stage !== 3 || quiz.submitted) return;
             if (e.button !== undefined && e.button !== 0) return;
             const chip = e.target.closest('[data-opt]');
             if (!chip) return;
