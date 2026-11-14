@@ -98,21 +98,6 @@
             padding: 0 4px;
         }
 
-        /* 第 3 關：停售的荷包蛋 */
-        .stopped {
-            background: #7f1d1d !important;
-            border: 2px solid #f87171 !important;
-            color: #fff !important;
-            text-decoration: line-through;
-            cursor: pointer;
-            animation: blink 1.2s ease-in-out infinite;
-        }
-        .stopped:hover { background: #b91c1c !important; text-decoration: none; }
-        @keyframes blink {
-            0%, 100% { box-shadow: 0 0 0 rgba(248, 113, 113, 0); }
-            50% { box-shadow: 0 0 10px rgba(248, 113, 113, 0.9); }
-        }
-
         /* 右上角的 ✕ 刪除鈕 */
         .seq-del { position: absolute; top: -7px; right: -7px; width: 17px; height: 17px; border-radius: 9999px; background: #dc2626; border: 1px solid #7f1d1d; color: #fff; font-size: 10px; font-weight: 900; line-height: 15px; text-align: center; display: none; z-index: 2; }
         .seq-del:hover { background: #ef4444; transform: scale(1.15); }
@@ -120,9 +105,29 @@
         /* 觸控裝置沒有「滑過」，✕ 一直顯示 */
         @media (hover: none) { .tray-chip .seq-del, .mod-row .seq-del { display: block; } }
 
-        /* 概念對照表 */
-        .concept-table th, .concept-table td { border: 1px solid #374151; padding: 0.4rem 0.75rem; }
+        /* 第 3 關：概念對照 (拖曳作答) */
+        .concept-table th, .concept-table td { border: 1px solid #374151; padding: 0.5rem 0.75rem; }
         .concept-table th { background: #1f2937; color: #ffc72c; }
+        .quiz-chip {
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 8px;
+            background: #0c4a6e;
+            border: 2px solid #38bdf8;
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: 700;
+            white-space: nowrap;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            cursor: grab;
+        }
+        .quiz-chip:hover { background: #075985; }
+        .quiz-locked .quiz-chip { cursor: default; }
+        .quiz-ghost { position: fixed; z-index: 60; pointer-events: none; opacity: 0.9; transform: translate(-50%, -50%) rotate(-2deg); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); cursor: grabbing; }
+        .drop-cell { min-height: 3rem; border: 2px dashed #4b5563; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .drop-hover { border-color: #ffc72c !important; background: rgba(255, 199, 44, 0.12); }
 
         @keyframes pop {
             0% { transform: scale(1); }
@@ -158,29 +163,6 @@
         </div>
     </div>
 
-    <!-- 概念對照視窗 -->
-    <div id="summaryModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
-        <div class="bg-[#111] border-2 border-[#ffc72c] rounded-2xl p-6 max-w-3xl w-full max-h-[92vh] overflow-y-auto hide-scrollbar shadow-[0_0_50px_rgba(255,199,44,0.3)]">
-            <div class="text-3xl font-black text-[#ffc72c] mb-1 text-center">🏆 點餐大師：模組化</div>
-            <div class="text-gray-400 text-center mb-5">你剛剛做的事，在程式設計裡就叫做「模組化」</div>
-            <div id="summaryResults" class="flex flex-col gap-2 mb-5"></div>
-            <table class="concept-table w-full text-lg text-center mb-5">
-                <thead><tr><th>點餐大師</th><th>程式設計</th><th>Scratch</th><th>Python</th></tr></thead>
-                <tbody class="text-gray-100">
-                    <tr><td>套餐</td><td>函式（模組）</td><td>自訂積木</td><td>函式</td></tr>
-                    <tr><td>定義套餐</td><td>定義函式</td><td>製作新的積木</td><td><code>def 套餐A():</code></td></tr>
-                    <tr><td>點一下套餐</td><td>呼叫函式</td><td>使用自訂積木</td><td><code>套餐A()</code></td></tr>
-                    <tr><td>單點</td><td>基本指令</td><td>內建積木</td><td><code>print()</code> 等</td></tr>
-                    <tr><td>點擊次數</td><td>程式碼長度</td><td>積木數量</td><td>程式行數</td></tr>
-                    <tr><td>螢幕只放得下 5 個按鈕</td><td>資源有限，模組要精挑細選</td><td colspan="2">記憶體、介面空間都有限</td></tr>
-                </tbody>
-            </table>
-            <div class="text-right">
-                <button onclick="hideSummary()" class="bg-[#ffc72c] hover:bg-yellow-400 text-black font-black py-2 px-6 rounded-full">關閉</button>
-            </div>
-        </div>
-    </div>
-
     <!-- 標題列：標題 + 三關成績 + 帳號 + 復原 -->
     <header class="bg-[#111] px-3 py-2 border-b border-gray-800 flex items-center gap-3 z-10 shrink-0 shadow-md">
         <h1 class="text-[1.875rem] leading-none font-black tracking-wider text-[#ffc72c] shrink-0">點餐大師</h1>
@@ -192,8 +174,8 @@
         <button id="undoBtn" onclick="undo()" title="復原上一步 (Ctrl+Z)" class="shrink-0 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800 text-white text-sm font-bold py-1.5 px-4 rounded border border-gray-600 transition-colors">↶ 復原</button>
     </header>
 
-    <!-- 三欄共用同一套格線：標題 / 上方提示 / 主要內容 / 下方資訊 -->
-    <main class="flex-1 min-h-0 grid" style="grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); grid-template-rows: auto auto minmax(0, 1fr) auto;">
+    <!-- 第 1、2 關：三欄共用同一套格線：標題 / 上方提示 / 主要內容 / 下方資訊 -->
+    <main id="mainGrid" class="flex-1 min-h-0 grid" style="grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); grid-template-rows: auto auto minmax(0, 1fr) auto;">
 
         <!-- 第 1 排：欄位標題 -->
         <div class="tab-header bg-[#da291c] shadow-lg shadow-red-900/50 text-white z-10 relative">
@@ -268,12 +250,28 @@
                 </div>
                 <div id="errorBox" class="hidden min-w-0 rounded-lg px-2 py-0.5 text-center font-bold bg-red-900 text-white border border-red-700"></div>
                 <div id="successBanner" class="hidden min-w-0 rounded-lg px-2 py-0.5 text-lg text-center font-black bg-[#e8c338] text-black border border-yellow-500 shadow-[0_0_12px_rgba(232,195,56,0.5)] whitespace-nowrap overflow-hidden text-ellipsis"></div>
-                <span class="text-center whitespace-nowrap"><span id="countLabel">點擊</span> <b id="clickCount" class="text-yellow-400 text-xl">0</b> 次</span>
+                <span class="text-center whitespace-nowrap">點擊 <b id="clickCount" class="text-yellow-400 text-xl">0</b> 次</span>
                 <button id="nextBtn" onclick="advance()" class="hidden bg-[#759e66] hover:bg-[#5a7d4e] text-white font-black py-1 rounded-full shadow-[0_0_12px_rgba(117,158,102,0.6)] animate-pulse"></button>
             </div>
             <div class="absolute bottom-0.5 right-1.5 text-[9px] text-gray-700 leading-none pointer-events-none">桃園市建國國中詹智傑老師設計(2026)</div>
         </div>
     </main>
+
+    <!-- 第 3 關：概念對照 (把 Scratch 選項拖到表格中) -->
+    <section id="quizPanel" class="hidden flex-1 min-h-0 overflow-y-auto hide-scrollbar bg-[#0a0a0a]">
+        <div class="max-w-5xl mx-auto px-4 py-5 flex flex-col gap-4">
+            <div class="text-center">
+                <div class="text-3xl font-black text-[#ffc72c]">第 3 關：概念對照</div>
+                <div class="text-gray-300 text-lg mt-1">你剛剛做的事，在程式設計裡就叫做「<b class="text-white">模組化</b>」</div>
+            </div>
+            <div id="quizResults" class="grid grid-cols-2 gap-3"></div>
+            <div class="text-gray-300 text-lg bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-2">
+                💡 把下方的 <b class="text-sky-300">Scratch 選項</b>拖到表格中正確的格子，全部放好後按「送出答案」。<b class="text-[#ffc72c]">答對一題 4 分</b>，送出後就不能修改。
+            </div>
+            <div id="quizArea"></div>
+            <div class="text-right text-[10px] text-gray-700">桃園市建國國中詹智傑老師設計(2026)</div>
+        </div>
+    </section>
 
     <script>
         // ===================== 資料 =====================
@@ -295,11 +293,8 @@
                 { id: 'm17', name: '冰奶茶' }, { id: 'm18', name: '冰紅茶' },
                 { id: 'm19', name: '溫豆漿' }, { id: 'm20', name: '熱咖啡' } ] }
         ];
-        // 第 3 關：荷包蛋停售，改賣起司蛋
-        const STOPPED = 'm12';
-        const REPLACEMENT = { id: 'm21', name: '起司蛋' };
-        const ALL_ITEMS = [...MENU_CATEGORIES.flatMap(cat => cat.items), REPLACEMENT];
-        const itemName = (id) => (ALL_ITEMS.find(m => m.id === id) || {}).name || id;
+        const MENU_ITEMS = MENU_CATEGORIES.flatMap(cat => cat.items);
+        const itemName = (id) => (MENU_ITEMS.find(m => m.id === id) || {}).name || id;
 
         // 第 1 關：今天常見的 15 張訂單
         const TODAY_ORDERS = [
@@ -309,7 +304,7 @@
             { id: 4, items: ['m5', 'm9', 'm19', 'm11'] },
             { id: 5, items: ['m2', 'm12', 'm17'] },
             { id: 6, items: ['m8', 'm12', 'm17'] },
-            { id: 7, items: ['m1', 'm15', 'm18', 'm2', 'm12'] },
+            { id: 7, items: ['m1', 'm15', 'm18', 'm12'] },
             { id: 8, items: ['m4', 'm20', 'm16'] },
             { id: 9, items: ['m5', 'm9', 'm19'] },
             { id: 10, items: ['m2', 'm12', 'm10'] },
@@ -330,46 +325,78 @@
             { id: 7, items: ['m6', 'm19'] },
             { id: 8, items: ['m4', 'm20', 'm12'] },
             { id: 9, items: ['m5', 'm9', 'm19', 'm10'] },
-            { id: 10, items: ['m1', 'm15', 'm18', 'm2', 'm12'] }
+            { id: 10, items: ['m4', 'm20', 'm2', 'm12'] }
         ];
-        // 第 3 關：今天的 15 單，荷包蛋改成起司蛋
-        const CHANGED_ORDERS = TODAY_ORDERS.map(o => ({ id: o.id, items: o.items.map(x => x === STOPPED ? REPLACEMENT.id : x) }));
-        const STOPPED_ORDER_COUNT = TODAY_ORDERS.filter(o => o.items.includes(STOPPED)).length;
 
         const sumItems = (orders) => orders.reduce((s, o) => s + o.items.length, 0);
 
-        // perfect：電腦搜尋所有可能的 5 組套餐後得到的最佳結果，達到即為「完美」
+        // perfect：電腦搜尋所有可能的 5 組套餐後得到的最少點擊次數，達到即為「完美」
         const STAGES = {
             1: { name: '今天 15 單', orders: TODAY_ORDERS, perfect: 27, baseline: sumItems(TODAY_ORDERS) },
             2: { name: '明天 10 單', orders: TOMORROW_ORDERS, perfect: 19, baseline: sumItems(TOMORROW_ORDERS) },
-            3: { name: '菜單改版', orders: CHANGED_ORDERS, perfect: 2, baseline: STOPPED_ORDER_COUNT }
+            3: { name: '概念對照' }
         };
 
         const MAX_MODULES = 5;      // 點餐機螢幕只放得下 5 個套餐按鈕
         const MIN_ITEMS = 2;        // 每組套餐最少品項
         const MAX_ITEMS = 3;        // 每組套餐最多品項
 
+        // 第 3 關：概念對照題目 (Scratch 欄要拖曳作答)
+        const QUIZ_ROWS = [
+            { food: '套餐', prog: '函式（模組）', answer: 'q1' },
+            { food: '定義套餐', prog: '定義函式', answer: 'q2' },
+            { food: '點一下套餐', prog: '呼叫函式', answer: 'q3' },
+            { food: '單點', prog: '基本指令', answer: 'q4' },
+            { food: '點擊次數', prog: '程式碼長度', answer: 'q5' }
+        ];
+        const QUIZ_OPTIONS = [
+            { id: 'q1', text: '自訂積木' },
+            { id: 'q2', text: '製作新的積木（定義積木）' },
+            { id: 'q3', text: '在程式裡使用自訂積木' },
+            { id: 'q4', text: '內建積木' },
+            { id: 'q5', text: '程式的積木數量' },
+            { id: 'x1', text: '角色' },
+            { id: 'x2', text: '舞台背景' }
+        ];
+        const QUIZ_POINT = 4;       // 答對一題 4 分 (5 題共 20 分)
+
         // ===================== 狀態 =====================
 
         let stage = 1;              // 目前顯示的關卡
         let unlocked = 1;           // 目前進行到第幾關 (之前的關卡已鎖定)
-        const stageData = {};       // 每一關各自的狀態 {modules, trays, activeOrder, history, edits}
+        const stageData = {};       // 第 1、2 關各自的狀態 {modules, trays, activeOrder, history}
 
-        // 目前顯示中的關卡狀態
+        // 目前顯示中的關卡狀態 (第 1、2 關)
         let orders = TODAY_ORDERS;
         let modules = [];           // [{id:'A', items:['m8','m12','m17']}]
         let trays = orders.map(() => []);   // 每一單的托盤 [{type:'module'|'item', ref}]
         let activeOrder = 0;        // 目前選取的訂單 (出餐對象)
         let history = [];           // 復原用的快照
-        let edits = 0;              // 第 3 關的修改次數
 
-        const best = { 1: null, 2: null, 3: null };   // 每關最佳紀錄
+        // 第 3 關作答狀態：每一列放了哪個選項
+        const quiz = { slots: QUIZ_ROWS.map(() => null), submitted: false, order: shuffle(QUIZ_OPTIONS.map(o => o.id)) };
+
+        const best = { 1: null, 2: null, 3: null };   // 第 1、2 關最少點擊次數；第 3 關答對題數
         let lastSolvedStamp = '';
 
         // ===================== 共用小工具 =====================
 
         const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        const clone = (x) => JSON.parse(JSON.stringify(x));
+
+        function shuffle(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function stampNow() {
+            const now = new Date();
+            const p2 = (n) => String(n).padStart(2, '0');
+            lastSolvedStamp = `${now.getMonth() + 1}/${now.getDate()} ${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
+        }
 
         const isEditable = () => stage === unlocked;            // 目前這一關還可以操作
         const canDefine = () => stage === 1 && unlocked === 1;  // 只有第 1 關可以建立、刪除套餐
@@ -418,14 +445,15 @@
             modal.classList.remove('flex');
         }
 
-        // ===================== 復原 =====================
+        // ===================== 復原 (第 1、2 關) =====================
 
         function snapshot() {
-            history.push(JSON.stringify({ modules, trays, activeOrder, edits }));
+            history.push(JSON.stringify({ modules, trays, activeOrder }));
             if (history.length > 100) history.shift();
         }
 
         function undo() {
+            if (stage === 3) return;
             if (history.length === 0) {
                 showMessage('沒有可以復原的動作', 'info');
                 return;
@@ -434,23 +462,27 @@
             modules = s.modules;
             trays = s.trays;
             activeOrder = s.activeOrder;
-            edits = s.edits;
             updateAll();
             showMessage('已復原上一步', 'info');
         }
 
         function updateUndoBtn() {
-            document.getElementById('undoBtn').disabled = history.length === 0;
+            document.getElementById('undoBtn').disabled = stage === 3 || history.length === 0;
         }
 
         // ===================== 初始化 =====================
 
         window.onload = () => {
-            // 按住滑鼠拖過餐點來建立套餐 (可能在訂單區外放開，所以 move / up 監聽整個頁面)
+            // 第 1 關：按住滑鼠拖過餐點來建立套餐 (可能在訂單區外放開，所以 move / up 監聽整個頁面)
             document.getElementById('ordersList').addEventListener('pointerdown', pickStart);
             document.addEventListener('pointermove', pickMove);
             document.addEventListener('pointerup', pickEnd);
             document.addEventListener('pointercancel', pickCancel);
+            // 第 3 關：拖曳 Scratch 選項
+            document.getElementById('quizArea').addEventListener('pointerdown', quizDown);
+            document.addEventListener('pointermove', quizMove);
+            document.addEventListener('pointerup', quizUp);
+            document.addEventListener('pointercancel', quizCancel);
             document.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
@@ -458,7 +490,6 @@
                 } else if (e.key === 'Escape') {
                     hideConfirm();
                     hideInfo();
-                    hideSummary();
                 }
             });
             linkScroll(document.getElementById('ordersScroll'), document.getElementById('trayScroll'));
@@ -468,6 +499,15 @@
         };
 
         function updateAll() {
+            const isQuiz = stage === 3;
+            document.getElementById('mainGrid').classList.toggle('hidden', isQuiz);
+            document.getElementById('quizPanel').classList.toggle('hidden', !isQuiz);
+            if (isQuiz) {
+                renderQuiz();
+                renderScoreboard();
+                updateUndoBtn();
+                return;
+            }
             renderStageText();
             renderOrders();
             renderModules();
@@ -481,18 +521,18 @@
         // ===================== 關卡切換 =====================
 
         function saveStage() {
-            stageData[stage] = { modules, trays, activeOrder, history, edits };
+            if (stage < 3) stageData[stage] = { modules, trays, activeOrder, history };
         }
 
         function loadStage(s) {
             stage = s;
+            if (s === 3) return;
             orders = STAGES[s].orders;
             const d = stageData[s];
             modules = d.modules;
             trays = d.trays;
             activeOrder = d.activeOrder;
             history = d.history;
-            edits = d.edits || 0;
         }
 
         // 點標題列的關卡切換查看
@@ -505,8 +545,10 @@
             saveStage();
             loadStage(s);
             updateAll();
-            document.getElementById('ordersScroll').scrollTop = 0;
-            document.getElementById('trayScroll').scrollTop = 0;
+            if (s < 3) {
+                document.getElementById('ordersScroll').scrollTop = 0;
+                document.getElementById('trayScroll').scrollTop = 0;
+            }
         }
 
         // 進入下一關
@@ -520,30 +562,25 @@
                 saveStage();
                 unlocked = next;
                 if (next === 2) {
-                    stageData[2] = { modules: stageData[1].modules, trays: TOMORROW_ORDERS.map(() => []), activeOrder: 0, history: [], edits: 0 };
-                } else {
-                    // 第 3 關：拿第 1 關完成的 15 單和套餐來改版
-                    stageData[3] = { modules: clone(stageData[1].modules), trays: clone(stageData[1].trays), activeOrder: null, history: [], edits: 0 };
+                    stageData[2] = { modules: stageData[1].modules, trays: TOMORROW_ORDERS.map(() => []), activeOrder: 0, history: [] };
                 }
                 loadStage(next);
                 updateAll();
-                document.getElementById('ordersScroll').scrollTop = 0;
-                document.getElementById('trayScroll').scrollTop = 0;
                 if (next === 2) {
+                    document.getElementById('ordersScroll').scrollTop = 0;
+                    document.getElementById('trayScroll').scrollTop = 0;
                     showInfo('第 2 關：明天的新訂單', `明天來了 <b class="text-white">10 張新訂單</b>！<br>點餐機螢幕上的 5 個套餐按鈕<b class="text-[#ffc72c]">已經固定，不能修改</b>。<br><br>看看你昨天設計的套餐，明天還好不好用？<br><span class="text-gray-400 text-base">（全部單點要 ${STAGES[2].baseline} 次）</span>`);
                 } else {
-                    showInfo('第 3 關：菜單改版', `老闆宣布：<b class="text-red-400">荷包蛋停售</b>，全部改成 <b class="text-[#ffc72c]">起司蛋</b>！<br><br>第 1 關的 15 單裡，有 ${STOPPED_ORDER_COUNT} 單點了荷包蛋。<br>請把<b class="text-red-400">紅色閃爍的荷包蛋</b>點一下換成起司蛋，讓 15 單全部恢復正確。<br><br>想一想：改<b class="text-white">套餐</b>裡的荷包蛋，和改<b class="text-white">托盤</b>裡的荷包蛋，有什麼不一樣？`);
+                    showInfo('第 3 關：概念對照', `你剛剛設計套餐、用套餐出餐，其實就是程式設計裡的「<b class="text-white">模組化</b>」！<br><br>請把 <b class="text-sky-300">Scratch 選項</b>拖到表格中正確的位置，<br>答對一題 4 分，全對 20 分。`);
                 }
             }, `進入第 ${next} 關`, 'bg-[#759e66] hover:bg-[#5a7d4e]');
         }
 
         // 依關卡更新欄位標題與提示
         function renderStageText() {
-            const locked = !isEditable();
             const heads = {
                 1: ['1. 常見顧客訂單', '2. 定義套餐', '3. 出餐（呼叫套餐）'],
-                2: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 出餐（呼叫套餐）'],
-                3: ['1. 改版後的訂單', '2. 修改套餐', '3. 修正托盤']
+                2: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 出餐（呼叫套餐）']
             }[stage];
             heads.forEach((t, i) => { document.getElementById('head' + (i + 1)).textContent = t; });
 
@@ -553,12 +590,9 @@
                     '💡 點選某一單，再點<b class="text-gray-200">套餐</b>或<b class="text-gray-200">單點</b>'],
                 2: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
                     '🔒 螢幕上的套餐按鈕<b class="text-gray-200">已經固定</b>，不能再修改',
-                    '💡 點選某一單，再點<b class="text-gray-200">套餐</b>或<b class="text-gray-200">單點</b>'],
-                3: ['💡 荷包蛋停售，訂單裡的荷包蛋都改成<b class="text-[#ffc72c]">起司蛋</b>',
-                    '💡 點套餐裡<b class="text-red-400">紅色的荷包蛋</b>，換成起司蛋',
-                    '💡 托盤裡<b class="text-red-400">紅色的荷包蛋</b>也要點一下換掉']
+                    '💡 點選某一單，再點<b class="text-gray-200">套餐</b>或<b class="text-gray-200">單點</b>']
             }[stage];
-            if (locked) tips[2] = '🔒 這一關已經完成並鎖定，只能查看';
+            if (!isEditable()) tips[2] = '🔒 這一關已經完成並鎖定，只能查看';
             tips.forEach((t, i) => { document.getElementById('tip' + (i + 1)).innerHTML = t; });
         }
 
@@ -579,6 +613,7 @@
 
         // 讓左邊的訂單和右邊的托盤每一列一樣高，捲動時才能逐單對齊
         function syncRowHeights() {
+            if (stage === 3) return;
             const L = document.querySelectorAll('#ordersList > [data-row]');
             const R = document.querySelectorAll('#trayList > [data-row]');
             L.forEach((l, i) => { l.style.minHeight = ''; if (R[i]) R[i].style.minHeight = ''; });
@@ -649,7 +684,7 @@
             list.classList.toggle('can-define', canDefine());
             list.innerHTML = orders.map((o, i) => {
                 const st = orderStatus(i);
-                const active = i === activeOrder;
+                const active = canServe() && i === activeOrder;
                 const cls = active ? 'border-[#ffc72c] bg-yellow-900/20'
                     : st === 'done' ? 'border-green-800/60 bg-green-900/10'
                     : 'border-gray-800 bg-gray-900/40';
@@ -809,19 +844,6 @@
             });
         }
 
-        // 第 3 關：把套餐裡的荷包蛋換成起司蛋
-        function fixModule(id) {
-            if (stage !== 3 || !isEditable()) return;
-            const mod = modules.find(m => m.id === id);
-            if (!mod || !mod.items.includes(STOPPED)) return;
-            snapshot();
-            mod.items = mod.items.map(x => x === STOPPED ? REPLACEMENT.id : x);
-            edits++;
-            const n = trays.filter(t => t.some(p => p.type === 'module' && p.ref === id)).length;
-            updateAll();
-            showMessage(`改了 1 次套餐 ${id}，用到它的 ${n} 單一起更新了！`, 'success');
-        }
-
         function renderModules() {
             const list = document.getElementById('moduleList');
             document.getElementById('moduleCountText').innerText = (stage >= 2 ? '🔒 ' : '') + `${modules.length} / ${MAX_MODULES} 個`;
@@ -842,17 +864,7 @@
 
                 const itemsWrap = document.createElement('span');
                 itemsWrap.className = 'border-l border-[#e27a3f]/50 pl-2 ml-1 flex-1 min-w-0 flex flex-wrap gap-1 transition-colors';
-                mod.items.forEach(it => {
-                    const s = document.createElement('span');
-                    s.className = 'text-[1.2rem] whitespace-nowrap bg-black/40 text-gray-100 border border-gray-700 px-2 rounded';
-                    s.textContent = itemName(it);
-                    if (stage === 3 && it === STOPPED && isEditable()) {
-                        s.classList.add('stopped');
-                        s.title = '點一下換成起司蛋';
-                        s.onclick = (e) => { e.stopPropagation(); fixModule(mod.id); };
-                    }
-                    itemsWrap.appendChild(s);
-                });
+                itemsWrap.innerHTML = mod.items.map(it => `<span class="text-[1.2rem] whitespace-nowrap bg-black/40 text-gray-100 border border-gray-700 px-2 rounded">${esc(itemName(it))}</span>`).join('');
 
                 btn.appendChild(idSpan);
                 btn.appendChild(itemsWrap);
@@ -873,9 +885,7 @@
             for (let k = modules.length; k < MAX_MODULES; k++) {
                 const empty = document.createElement('div');
                 empty.className = 'w-full border-2 border-dashed border-gray-800 rounded-lg text-gray-600 text-sm text-center py-2';
-                empty.textContent = k === modules.length && canDefine()
-                    ? (modules.length === 0 ? '空的按鈕：在左側訂單按住滑鼠拖過餐點來建立' : '空的按鈕')
-                    : '空的按鈕';
+                empty.textContent = (k === 0 && canDefine()) ? '空的按鈕：在左側訂單按住滑鼠拖過餐點來建立' : '空的按鈕';
                 list.appendChild(empty);
             }
         }
@@ -894,14 +904,11 @@
 
                 const grid = document.createElement('div');
                 grid.className = 'flex-1 grid grid-cols-4 gap-1';
-                cat.items.forEach(base => {
-                    // 第 3 關菜單改版：荷包蛋換成起司蛋
-                    const item = (stage === 3 && base.id === STOPPED) ? REPLACEMENT : base;
+                cat.items.forEach(item => {
                     const btn = document.createElement('button');
                     btn.className = 'flex items-center justify-center px-1 py-1 rounded-lg border-2 text-[1.2rem] font-bold leading-tight whitespace-nowrap shadow-md transition-all select-none ' +
                         (canServe() ? 'bg-gray-800 border-gray-700 hover:bg-gray-600 hover:border-gray-400 text-gray-200 active:scale-95'
-                                    : 'bg-gray-900 border-gray-800 text-gray-500 cursor-default') +
-                        (item === REPLACEMENT ? ' !border-[#ffc72c] !text-[#ffc72c]' : '');
+                                    : 'bg-gray-900 border-gray-800 text-gray-500 cursor-default');
                     btn.textContent = item.name;
                     btn.title = canServe() ? `單點 ${item.name}` : '';
                     btn.onclick = () => callPiece('item', item.id, btn);
@@ -912,7 +919,7 @@
             });
         }
 
-        // ===================== 3. 右欄：出餐 / 修正托盤 =====================
+        // ===================== 3. 右欄：出餐 =====================
 
         function selectOrder(i) {
             if (!canServe() || activeOrder === i) return;
@@ -920,14 +927,9 @@
             updateAll();
         }
 
-        function lockedMessage() {
-            if (stage === 3) showMessage('這一關不用出餐，請把紅色的荷包蛋點一下換成起司蛋', 'info');
-            else showMessage('這一關已經完成並鎖定，只能查看', 'info');
-        }
-
         // 把套餐或單點放進目前選取那一單的托盤
         function callPiece(type, ref, btn) {
-            if (!canServe()) { lockedMessage(); return; }
+            if (!canServe()) { showMessage('這一關已經完成並鎖定，只能查看', 'info'); return; }
             if (activeOrder === null) {
                 const next = nextIncomplete(orders.length - 1);
                 if (next === null) {
@@ -972,16 +974,6 @@
             showMessage(`已清空第 ${orders[i].id} 單，按「↶ 復原」可以救回來`, 'info');
         }
 
-        // 第 3 關：把托盤裡單點的荷包蛋換成起司蛋
-        function fixTrayPiece(i, j) {
-            if (stage !== 3 || !isEditable()) return;
-            snapshot();
-            trays[i][j].ref = REPLACEMENT.id;
-            edits++;
-            updateAll();
-            showMessage(`改了 1 次，只修好第 ${orders[i].id} 單`, 'info');
-        }
-
         function scrollToActive() {
             if (activeOrder === null) return;
             const row = document.querySelector(`#trayList > [data-row="${activeOrder}"]`);
@@ -1020,19 +1012,12 @@
                     const chip = document.createElement('span');
                     if (p.type === 'module') {
                         const mod = modules.find(m => m.id === p.ref);
-                        const broken = stage === 3 && mod && mod.items.includes(STOPPED);
-                        chip.className = 'tray-chip relative text-white font-black text-[1.2rem] whitespace-nowrap px-2.5 rounded shadow-md leading-[1.75] border ' +
-                            (broken ? 'bg-red-900 border-red-400' : 'bg-gradient-to-r from-[#e27a3f] to-[#d35400] border-[#ffb480]/50');
-                        chip.textContent = `📦 ${p.ref}` + (broken ? ' ⚠' : '');
-                        if (mod) chip.title = mod.items.map(itemName).join('＋') + (broken ? '（請到中間修改套餐）' : '');
+                        chip.className = 'tray-chip relative bg-gradient-to-r from-[#e27a3f] to-[#d35400] text-white font-black text-[1.2rem] whitespace-nowrap px-2.5 rounded border border-[#ffb480]/50 shadow-md leading-[1.75]';
+                        chip.textContent = `📦 ${p.ref}`;
+                        if (mod) chip.title = mod.items.map(itemName).join('＋');
                     } else {
                         chip.className = 'tray-chip relative bg-gray-800 border border-gray-500 text-white text-[1.2rem] whitespace-nowrap px-2 rounded shadow-md leading-[1.75]';
                         chip.textContent = itemName(p.ref);
-                        if (stage === 3 && p.ref === STOPPED && isEditable()) {
-                            chip.classList.add('stopped');
-                            chip.title = '點一下換成起司蛋';
-                            chip.onclick = (e) => { e.stopPropagation(); fixTrayPiece(i, j); };
-                        }
                     }
                     if (serving) {
                         const del = document.createElement('button');
@@ -1059,7 +1044,6 @@
                     mark.onclick = (e) => { e.stopPropagation(); clearOrder(i); };
                 } else {
                     mark = document.createElement('div');
-                    if (st === 'error') mark.textContent = '❌';
                 }
                 mark.classList.add('w-7', 'h-7', 'shrink-0', 'text-center', 'text-xl', 'leading-7');
                 row.appendChild(mark);
@@ -1068,7 +1052,7 @@
             });
         }
 
-        // ===================== 統計與成績 =====================
+        // ===================== 統計與成績 (第 1、2 關) =====================
 
         function updateStats() {
             const total = orders.length;
@@ -1076,7 +1060,6 @@
             const doneCount = statuses.filter(s => s === 'done').length;
             const errorOrders = orders.filter((_, i) => statuses[i] === 'error').map(o => o.id);
             const clicks = trays.reduce((s, t) => s + t.length, 0);
-            const value = stage === 3 ? edits : clicks;
 
             // 左下、中下資訊
             const totalItems = sumItems(orders);
@@ -1088,8 +1071,7 @@
             document.getElementById('moduleCount').innerText = modules.length;
 
             // 右下：進度、錯誤、完成
-            document.getElementById('countLabel').innerText = stage === 3 ? '修改' : '點擊';
-            document.getElementById('clickCount').innerText = value;
+            document.getElementById('clickCount').innerText = clicks;
             const pct = Math.floor(doneCount / total * 100);
             const bar = document.getElementById('doneBar');
             bar.style.width = pct + '%';
@@ -1099,26 +1081,21 @@
             const nextBtn = document.getElementById('nextBtn');
             nextBtn.classList.add('hidden');
             let state = 'progress';
-            if (errorOrders.length > 0 && stage !== 3) {
+            if (errorOrders.length > 0) {
                 state = 'error';
                 document.getElementById('errorBox').innerText = `❌ 第 ${errorOrders.join('、')} 單有錯，請修正`;
             } else if (doneCount === total) {
                 state = 'solved';
-                const perfect = value <= STAGES[stage].perfect;
-                if (isEditable() && (best[stage] === null || value < best[stage])) {
-                    const first = best[stage] === null;
-                    best[stage] = value;
-                    const now = new Date();
-                    const p2 = (n) => String(n).padStart(2, '0');
-                    lastSolvedStamp = `${now.getMonth() + 1}/${now.getDate()} ${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
+                if (isEditable() && (best[stage] === null || clicks < best[stage])) {
+                    best[stage] = clicks;
+                    stampNow();
                     syncScores();
-                    if (stage === 3 && first) setTimeout(showSummary, 800);
                 }
                 const big = (n) => `<span class="text-2xl text-red-600 mx-0.5 leading-none">${n}</span>`;
-                document.getElementById('successBanner').innerHTML = stage === 3
-                    ? `✅ 只改了${big(value)}次！`
-                    : (perfect ? `🏆 完美！${big(value)}次` : `✅ 全部完成！${big(value)}次`);
-                if (isEditable() && stage < 3) {
+                document.getElementById('successBanner').innerHTML = clicks <= STAGES[stage].perfect
+                    ? `🏆 完美！${big(clicks)}次`
+                    : `✅ 全部完成！${big(clicks)}次`;
+                if (isEditable()) {
                     nextBtn.textContent = `進入第 ${stage + 1} 關 ▶`;
                     nextBtn.classList.remove('hidden');
                 }
@@ -1130,9 +1107,10 @@
             renderScoreboard();
         }
 
-        // 每關分數：未完成 0 分；完成 15 分；達到最佳 (完美) 20 分
+        // 每關分數：第 1、2 關未完成 0 分、完成 15 分、完美 20 分；第 3 關答對一題 4 分
         function stagePoints(s) {
             if (best[s] === null) return 0;
+            if (s === 3) return best[s] * QUIZ_POINT;
             return best[s] <= STAGES[s].perfect ? 20 : 15;
         }
 
@@ -1144,19 +1122,20 @@
                 const pts = stagePoints(s);
                 total += pts;
                 const ring = s === stage ? ' ring-2 ring-orange-500 ring-offset-1 ring-offset-black' : '';
+                const perfect = b !== null && (s === 3 ? b === QUIZ_ROWS.length : b <= STAGES[s].perfect);
                 let cls, status, pointsTag = '';
                 if (s > unlocked) {
                     cls = 'bg-gray-900 border-gray-800 text-gray-600 cursor-not-allowed';
                     status = '🔒 未解鎖';
                 } else if (b !== null) {
-                    const unit = s === 3 ? '修改' : '';
-                    if (b <= STAGES[s].perfect) {
+                    const value = s === 3 ? `答對 <b>${b}</b>/${QUIZ_ROWS.length}` : `<b>${b}</b> 次`;
+                    if (perfect) {
                         cls = 'bg-yellow-500 border-yellow-300 text-black hover:bg-yellow-400';
-                        status = `完美 ${unit}<b>${b}</b> 次`;
+                        status = (s === 3 ? '全對 ' : '完美 ') + value;
                         pointsTag = `<span class="text-red-600 ml-1">${pts}分</span>`;
                     } else {
                         cls = 'bg-yellow-500/15 border-yellow-500 text-yellow-300 hover:bg-yellow-500/25';
-                        status = `${unit || '最佳 '}<b class="text-white">${b}</b> 次`;
+                        status = (s === 3 ? '' : '最佳 ') + value;
                         pointsTag = `<span class="text-red-500 ml-1">${pts}分</span>`;
                     }
                 } else {
@@ -1166,38 +1145,143 @@
                 html += `<button onclick="viewStage(${s})" class="border rounded-lg px-3 py-0.5 text-sm leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}${pointsTag}</span><span class="block text-xs">${status}</span></button>`;
             });
             html += `<span class="shrink-0 ml-1 text-red-500 font-black text-lg">總分 ${total} 分</span>`;
-            if (best[3] !== null) {
-                html += `<button onclick="showSummary()" class="shrink-0 bg-sky-700 hover:bg-sky-600 text-white text-sm font-bold px-3 py-1 rounded-full">📘 概念對照</button>`;
-            }
             html += `<span class="ml-auto text-sm text-gray-400 shrink-0">點擊越少，分數越高${lastSolvedStamp ? `<span class="text-xs text-gray-500 ml-2">${lastSolvedStamp}</span>` : ''}</span>`;
             document.getElementById('scoreboard').innerHTML = html;
         }
 
-        // ===================== 概念對照 (完成第 3 關後) =====================
+        // ===================== 第 3 關：概念對照 (拖曳作答) =====================
 
-        function showSummary() {
-            const line = (icon, title, text, concept) => `
+        const optionText = (id) => (QUIZ_OPTIONS.find(o => o.id === id) || {}).text || '';
+
+        function renderQuiz() {
+            // 上方：第 1、2 關的成果與對應觀念
+            const card = (icon, title, text, concept) => `
                 <div class="bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-2">
                     <div class="text-lg"><span class="mr-1">${icon}</span><b class="text-white">${title}</b>：${text}</div>
                     <div class="text-[#8bc576] font-bold">→ ${concept}</div>
                 </div>`;
             const r = (s) => best[s] === null ? '—' : best[s];
-            document.getElementById('summaryResults').innerHTML =
-                line('1️⃣', '今天 15 單', `全部單點要 ${STAGES[1].baseline} 次，用套餐只要 <b class="text-[#ffc72c]">${r(1)}</b> 次`,
+            document.getElementById('quizResults').innerHTML =
+                card('1️⃣', '今天 15 單', `全部單點要 ${STAGES[1].baseline} 次，用套餐只要 <b class="text-[#ffc72c]">${r(1)}</b> 次`,
                     '把重複出現的步驟包成函式，程式就變短了') +
-                line('2️⃣', '明天 10 單', `套餐不能改，全部單點要 ${STAGES[2].baseline} 次，你用了 <b class="text-[#ffc72c]">${r(2)}</b> 次`,
-                    '設計得好的函式，換了新資料也能重複使用') +
-                line('3️⃣', '菜單改版', `全部單點要改 ${STAGES[3].baseline} 次，你只改了 <b class="text-[#ffc72c]">${r(3)}</b> 次`,
-                    '修改函式一次，所有呼叫它的地方都跟著更新，程式比較好維護');
-            const modal = document.getElementById('summaryModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+                card('2️⃣', '明天 10 單', `套餐不能改，全部單點要 ${STAGES[2].baseline} 次，你用了 <b class="text-[#ffc72c]">${r(2)}</b> 次`,
+                    '設計得好的函式，換了新資料也能重複使用');
+
+            // 對照表：Scratch 欄是放選項的格子
+            const done = quiz.submitted;
+            let rows = QUIZ_ROWS.map((row, i) => {
+                const opt = quiz.slots[i];
+                let cell = opt ? `<span class="quiz-chip" data-opt="${opt}">${esc(optionText(opt))}</span>` : '<span class="text-gray-600 text-base">拖到這裡</span>';
+                let cellCls = 'drop-cell';
+                if (done) {
+                    const ok = opt === row.answer;
+                    cellCls += ok ? ' !border-solid !border-emerald-500 bg-emerald-900/30' : ' !border-solid !border-red-500 bg-red-900/30';
+                    cell += ok ? '<span class="text-2xl">✅</span>'
+                               : `<span class="text-2xl">❌</span><span class="text-emerald-300 font-bold">正確：${esc(optionText(row.answer))}</span>`;
+                }
+                return `<tr><td class="font-bold text-white">${row.food}</td><td>${row.prog}</td><td class="w-[45%]"><div class="${cellCls}" data-slot="${i}">${cell}</div></td></tr>`;
+            }).join('');
+            rows += `<tr><td class="font-bold text-white">螢幕只放得下 5 個套餐按鈕</td><td>資源有限，模組要精挑細選</td><td class="text-gray-500">—</td></tr>`;
+
+            // 選項區：還沒放進表格的選項
+            const pool = quiz.order.filter(id => !quiz.slots.includes(id));
+            const filled = quiz.slots.every(Boolean);
+            const correct = QUIZ_ROWS.filter((row, i) => quiz.slots[i] === row.answer).length;
+
+            document.getElementById('quizArea').innerHTML = `
+                <div class="${done ? 'quiz-locked' : ''} flex flex-col gap-4">
+                    <table class="concept-table w-full text-lg text-center">
+                        <thead><tr><th>點餐大師</th><th>程式設計</th><th>Scratch</th></tr></thead>
+                        <tbody class="text-gray-100">${rows}</tbody>
+                    </table>
+                    ${done ? `
+                        <div class="text-center text-2xl font-black bg-[#e8c338] text-black rounded-xl py-3 shadow-[0_0_20px_rgba(232,195,56,0.5)]">
+                            答對 <span class="text-red-600 text-3xl">${correct}</span> / ${QUIZ_ROWS.length} 題，得 <span class="text-red-600 text-3xl">${correct * QUIZ_POINT}</span> 分
+                        </div>` : `
+                        <div>
+                            <div class="text-sky-300 font-bold mb-2">🧩 Scratch 選項（有 ${QUIZ_OPTIONS.length - QUIZ_ROWS.length} 個是用不到的）</div>
+                            <div id="quizPool" class="min-h-[4rem] flex flex-wrap gap-3 p-3 bg-[#111827] border-2 border-dashed border-sky-900 rounded-xl">
+                                ${pool.length ? pool.map(id => `<span class="quiz-chip" data-opt="${id}">${esc(optionText(id))}</span>`).join('') : '<span class="text-gray-600">（選項都放進表格了，可以拖回這裡）</span>'}
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <button onclick="submitQuiz()" ${filled ? '' : 'disabled'} class="bg-[#759e66] hover:bg-[#5a7d4e] disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-xl font-black py-2 px-10 rounded-full shadow-lg">送出答案</button>
+                            ${filled ? '' : '<div class="text-gray-500 text-sm mt-1">5 個格子都放好選項後才能送出</div>'}
+                        </div>`}
+                </div>`;
         }
 
-        function hideSummary() {
-            const modal = document.getElementById('summaryModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+        // ---------- 拖曳選項 ----------
+        let qdrag = null;   // { opt, from (格子編號或 null=選項區), ghost, src }
+
+        function quizDown(e) {
+            if (stage !== 3 || quiz.submitted || !isEditable()) return;
+            if (e.button !== undefined && e.button !== 0) return;
+            const chip = e.target.closest('[data-opt]');
+            if (!chip) return;
+            e.preventDefault();
+            const from = chip.closest('[data-slot]');
+            const ghost = chip.cloneNode(true);
+            ghost.classList.add('quiz-ghost');
+            ghost.style.left = e.clientX + 'px';
+            ghost.style.top = e.clientY + 'px';
+            document.body.appendChild(ghost);
+            chip.style.opacity = '0.3';
+            qdrag = { opt: chip.dataset.opt, from: from ? Number(from.dataset.slot) : null, ghost, src: chip };
+        }
+
+        function dropTarget(e) {
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            if (!el) return {};
+            return { slot: el.closest('[data-slot]'), pool: el.closest('#quizPool') };
+        }
+
+        function quizMove(e) {
+            if (!qdrag) return;
+            e.preventDefault();
+            qdrag.ghost.style.left = e.clientX + 'px';
+            qdrag.ghost.style.top = e.clientY + 'px';
+            document.querySelectorAll('.drop-hover').forEach(el => el.classList.remove('drop-hover'));
+            const { slot, pool } = dropTarget(e);
+            if (slot) slot.classList.add('drop-hover');
+            else if (pool) pool.classList.add('drop-hover');
+        }
+
+        function quizCancel() {
+            if (!qdrag) return;
+            qdrag.ghost.remove();
+            qdrag.src.style.opacity = '';
+            qdrag = null;
+            document.querySelectorAll('.drop-hover').forEach(el => el.classList.remove('drop-hover'));
+        }
+
+        function quizUp(e) {
+            if (!qdrag) return;
+            const { slot, pool } = dropTarget(e);
+            const { opt, from } = qdrag;
+            quizCancel();
+            if (slot) {
+                const to = Number(slot.dataset.slot);
+                const prev = quiz.slots[to];
+                quiz.slots[to] = opt;
+                // 從另一個格子拖過來：兩格交換；從選項區拖過來：原本的選項回到選項區
+                if (from !== null && from !== to) quiz.slots[from] = prev;
+            } else if (pool && from !== null) {
+                quiz.slots[from] = null;   // 拖回選項區
+            }
+            renderQuiz();
+        }
+
+        function submitQuiz() {
+            if (quiz.submitted || !quiz.slots.every(Boolean)) return;
+            askConfirm('送出後就不能修改答案，確定要送出嗎？', () => {
+                quiz.submitted = true;
+                best[3] = QUIZ_ROWS.filter((row, i) => quiz.slots[i] === row.answer).length;
+                stampNow();
+                syncScores();
+                renderQuiz();
+                renderScoreboard();
+            }, '送出答案', 'bg-[#759e66] hover:bg-[#5a7d4e]');
         }
 
         // ===================== 上傳成績到老師的試算表 =====================
