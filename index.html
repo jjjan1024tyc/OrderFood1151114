@@ -29,11 +29,8 @@
         .tab-arrow-r { right:-1rem; }
         .tab-arrow-l { left:0; }
 
-        /* 反白選取時的顏色 */
-        ::selection { background-color: #ed7d31; color: white; }
-
-        /* 左欄訂單中的品項 */
-        .order-items { user-select: text; }
+        /* 左欄訂單中的品項：不反白文字，改成整顆餐點被選取 */
+        .order-items { user-select: none; -webkit-user-select: none; }
         .chip {
             display: inline-block;
             position: relative;
@@ -46,8 +43,16 @@
             font-size: 1.2rem;
             line-height: 1.75;
             white-space: nowrap;
-            cursor: text;
+            cursor: pointer;
+            touch-action: none;
+            transition: background-color 0.1s, border-color 0.1s;
         }
+        .chip.uncov:hover { border-color: #ed7d31; color: #fff; }
+        .chip.cov { cursor: not-allowed; }
+        /* 拖曳中被選取的餐點 */
+        .chip.picking { background: #ed7d31; border: 1px solid #fdba74; color: #fff; }
+        /* 選太多 (超過 3 個) 時變紅色 */
+        .chip.picking.too-many { background: #b91c1c; border-color: #fca5a5; }
         /* 套餐：一個紅框包住它的品項，左上角一個代號 */
         .mod-group {
             display: inline-block;
@@ -169,7 +174,7 @@
         </div>
         <div class="bg-[#111] border-r border-gray-800 px-4 pt-3 flex flex-col">
             <div class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-sm text-gray-400 font-medium">
-                💡 在左側訂單<b class="text-gray-200">拖曳反白 2～3 個品項</b>就會建立套餐（最多 5 組）
+                💡 在左側訂單<b class="text-gray-200">按住滑鼠拖過 2～3 個餐點</b>就會建立套餐（最多 5 組）
             </div>
         </div>
         <div class="bg-gray-950 px-4 pt-3 flex flex-col">
@@ -343,9 +348,11 @@
         // ===================== 初始化 =====================
 
         window.onload = () => {
-            // 拖曳反白放開時，立即定義套餐 (可能在訂單區外放開，所以監聽整個頁面)
-            document.addEventListener('mouseup', () => setTimeout(defineFromSelection, 0));
-            document.addEventListener('touchend', () => setTimeout(defineFromSelection, 0));
+            // 按住滑鼠拖過餐點來建立套餐 (可能在訂單區外放開，所以 move / up 監聽整個頁面)
+            document.getElementById('ordersList').addEventListener('pointerdown', pickStart);
+            document.addEventListener('pointermove', pickMove);
+            document.addEventListener('pointerup', pickEnd);
+            document.addEventListener('pointercancel', pickCancel);
             document.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
@@ -447,7 +454,7 @@
             });
         }
 
-        // ===================== 1. 左欄：顧客訂單、反白定義套餐 =====================
+        // ===================== 1. 左欄：顧客訂單、拖過餐點定義套餐 =====================
 
         function renderOrders() {
             const cov = computeCoverage();
@@ -481,55 +488,94 @@
             }).join('');
         }
 
-        // 點左邊的訂單 (不是拖曳反白) 也能選取這一單
+        // 點左邊的訂單也能選取這一單 (剛拖曳建立套餐時除外)
+        let suppressCardClick = false;
         function clickOrderCard(i) {
-            const sel = window.getSelection();
-            if (sel && !sel.isCollapsed) return;
+            if (suppressCardClick) { suppressCardClick = false; return; }
             selectOrder(i);
         }
 
-        // 找出反白範圍碰到的品項
-        function selectionToChips() {
-            const sel = window.getSelection();
-            if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
-            const box = document.getElementById('ordersList');
-            const range = sel.getRangeAt(0);
-            if (!range.intersectsNode(box)) return null;
-            const hit = [];
-            box.querySelectorAll('.chip').forEach(span => {
-                const r = document.createRange();
-                r.selectNodeContents(span);
-                if (range.compareBoundaryPoints(Range.END_TO_START, r) < 0 &&
-                    range.compareBoundaryPoints(Range.START_TO_END, r) > 0) {
-                    hit.push({ o: Number(span.dataset.o), k: Number(span.dataset.k) });
-                }
-            });
-            return hit.length ? hit : null;
+        // ---------- 按住滑鼠拖過餐點：從起點到目前位置的餐點整顆被選取 ----------
+        let pick = null;  // { o, chips:[同一單的餐點元素 (畫面順序)], start, cur }
+
+        function pickStart(e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            const chip = e.target.closest('.chip');
+            if (!chip) return;
+            e.preventDefault();
+            const o = Number(chip.dataset.o);
+            if (chip.classList.contains('cov')) {
+                const id = computeCoverage()[o][Number(chip.dataset.k)];
+                showMessage(`這個餐點已經屬於套餐 ${id}，請選虛線框的餐點`, 'info');
+                return;
+            }
+            const chips = [...document.querySelectorAll(`#ordersList .chip[data-o="${o}"]`)];
+            const start = chips.indexOf(chip);
+            pick = { o, chips, start, cur: start };
+            paintPick();
         }
 
-        // 放開滑鼠時：若反白了訂單中的品項，就直接定義成套餐
-        function defineFromSelection() {
-            const hit = selectionToChips();
-            if (!hit) return;
-            window.getSelection().removeAllRanges();
+        function pickMove(e) {
+            if (!pick) return;
+            e.preventDefault();
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            const chip = el && el.closest('.chip');
+            // 只接受同一張訂單裡的餐點；移到別處就維持原本的選取
+            if (!chip || Number(chip.dataset.o) !== pick.o) return;
+            const idx = pick.chips.indexOf(chip);
+            if (idx !== -1 && idx !== pick.cur) {
+                pick.cur = idx;
+                paintPick();
+            }
+        }
 
-            const orderIdxs = [...new Set(hit.map(h => h.o))];
-            if (orderIdxs.length > 1) {
-                showMessage('一次只能反白同一張訂單裡的品項');
-                return;
+        // 目前被選取的餐點：從起點往目前位置走，碰到紅框套餐裡的餐點就停
+        function pickedChips() {
+            const { chips, start, cur } = pick;
+            const step = cur >= start ? 1 : -1;
+            const list = [];
+            for (let i = start; ; i += step) {
+                if (chips[i].classList.contains('cov')) break;
+                list.push(chips[i]);
+                if (i === cur) break;
             }
-            if (hit.length < MIN_ITEMS || hit.length > MAX_ITEMS) {
-                showMessage(`套餐要包含 ${MIN_ITEMS}～${MAX_ITEMS} 個品項，你選了 ${hit.length} 個`, hit.length < MIN_ITEMS ? 'info' : 'error');
-                return;
-            }
+            return list;
+        }
 
-            // 不允許選到已經屬於某個套餐的品項
-            const cov = computeCoverage();
-            const overlapIds = [...new Set(hit.map(h => cov[h.o][h.k]).filter(Boolean))];
-            if (overlapIds.length > 0) {
-                showMessage(`選到的品項已經屬於套餐 ${overlapIds.join('、')}，請選虛線框的品項`);
+        function paintPick() {
+            const picked = pickedChips();
+            const tooMany = picked.length > MAX_ITEMS;
+            pick.chips.forEach(c => c.classList.remove('picking', 'too-many'));
+            picked.forEach(c => {
+                c.classList.add('picking');
+                if (tooMany) c.classList.add('too-many');
+            });
+        }
+
+        function pickCancel() {
+            if (!pick) return;
+            pick.chips.forEach(c => c.classList.remove('picking', 'too-many'));
+            pick = null;
+        }
+
+        function pickEnd() {
+            if (!pick) return;
+            const o = pick.o;
+            const ks = pickedChips().map(c => Number(c.dataset.k)).sort((a, b) => a - b);
+            pickCancel();
+            if (ks.length === 1) return;  // 只點一下：當作選取這一單 (交給 click)
+            suppressCardClick = true;
+            setTimeout(() => { suppressCardClick = false; }, 0);
+            defineModule(o, ks);
+        }
+
+        // 用第 o 單裡第 ks 個餐點建立套餐
+        function defineModule(o, ks) {
+            if (ks.length < MIN_ITEMS || ks.length > MAX_ITEMS) {
+                showMessage(`套餐要包含 ${MIN_ITEMS}～${MAX_ITEMS} 個餐點，你選了 ${ks.length} 個`);
                 return;
             }
+            const hit = ks.map(k => ({ o, k }));
 
             if (modules.length >= MAX_MODULES) {
                 showMessage(`最多只能建立 ${MAX_MODULES} 組套餐，可以先刪除再建立`);
@@ -581,7 +627,7 @@
             list.innerHTML = '';
 
             if (modules.length === 0) {
-                list.innerHTML = '<div class="text-gray-600 text-center text-sm py-3 w-full border-2 border-dashed border-gray-800 rounded-lg">尚未建立，請在左側訂單拖曳反白</div>';
+                list.innerHTML = '<div class="text-gray-600 text-center text-sm py-3 w-full border-2 border-dashed border-gray-800 rounded-lg">尚未建立，請在左側訂單按住滑鼠拖過餐點</div>';
                 return;
             }
 
