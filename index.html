@@ -640,7 +640,7 @@
                 1: [`💡 ${orders.length}張訂單，共${sumItems(orders)}個餐點。`,
                     '💡 點選下面品項，放進右側托盤。'],
                 2: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，<b class="text-gray-200">找出經常出現的餐點組合</b>，定義為套餐；<span class="text-red-400 font-bold">紅框</span>＝套餐`,
-                    '💡 點餐螢幕只能放<b class="text-gray-200">5個套餐按鈕</b>，在左側訂單選取2~3個餐點來<b class="text-gray-200">建立套餐</b>。'],
+                    '💡 點餐螢幕只能放5個套餐按鈕，<b class="text-gray-200">在左側訂單選取2~3個餐點來建立套餐</b>。'],
                 3: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
                     '🔒 螢幕上的套餐按鈕<b class="text-gray-200">已經固定</b>，不能再修改']
             }[stage];
@@ -1293,13 +1293,13 @@
                     status = `🔒 先完成第 ${s - 1} 關`;
                 } else {
                     if (s === QUIZ_STAGE) status = best[4] === null ? '未作答' : `答對 ${best[4]}/${QUIZ_ROWS.length} 題`;
-                    else status = `完成 ${stageDoneCount(s)}/${STAGES[s].orders.length}・點擊 ${counts[s].ok + counts[s].err}`;
+                    else status = `完成 ${stageDoneCount(s)}/${STAGES[s].orders.length}・成功 ${counts[s].ok}`;
                     cls = pts >= max ? 'bg-yellow-500 border-yellow-300 text-black hover:bg-yellow-400'
                         : pts > 0 ? 'bg-yellow-500/15 border-yellow-500 text-yellow-300 hover:bg-yellow-500/25'
                         : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-700';
                 }
                 const ptsColor = s === readyNext ? 'text-yellow-200' : pts >= max ? 'text-red-600' : 'text-red-500';
-                html += `<button onclick="${onclick}" class="border-2 rounded-lg px-4 py-1 text-[1.3125rem] leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}<span class="${ptsColor} ml-1">${pts}/${max}分</span></span><span class="block text-[1.125rem]">${status}</span></button>`;
+                html += `<button onclick="${onclick}" class="border-2 rounded-lg px-3 py-1 text-[1.05rem] leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}<span class="${ptsColor} ml-1">${pts}/${max}分</span></span><span class="block text-[0.9rem]">${status}</span></button>`;
             });
             html += `<span class="shrink-0 ml-1 text-red-500 font-black text-[1.6875rem]">總分 ${total} 分</span>`;
             html += `<span class="ml-auto text-[1.125rem] text-gray-500 shrink-0">${lastSolvedStamp}</span>`;
