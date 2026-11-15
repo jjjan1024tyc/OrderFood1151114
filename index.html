@@ -291,9 +291,9 @@
         <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
             <div class="text-center">
                 <div class="text-3xl font-black text-[#ffc72c]">第 4 關：概念對照</div>
-                <div class="text-gray-300 text-[1.6875rem] mt-1">你剛剛做的事，在程式設計裡就叫做「<b class="text-white">模組化</b>」</div>
+                <div class="text-gray-300 text-xl mt-1">你剛剛做的事，在程式設計裡就叫做「<b class="text-white">模組化</b>」</div>
             </div>
-            <div class="text-gray-300 text-[1.6875rem] leading-snug bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-2">
+            <div class="text-gray-300 text-xl leading-snug bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-2">
                 💡 把下方的 <b class="text-sky-300">Scratch 積木圖</b>拖到表格中正確的格子，全部放好後按「送出答案」。<b class="text-[#ffc72c]">答對一題 7 分，全對 20 分</b>，送出後就不能修改。
             </div>
             <div id="quizArea"></div>
@@ -1368,15 +1368,15 @@
             const done = quiz.submitted;
             const rows = QUIZ_ROWS.map((row, i) => {
                 const opt = quiz.slots[i];
-                let cell = opt ? optionChip(opt) : '<span class="text-gray-600 text-base">拖到這裡</span>';
+                let cell = opt ? optionChip(opt) : '<span class="text-gray-600 text-xl">拖到這裡</span>';
                 let cellCls = 'drop-cell';
                 if (done) {
                     const ok = opt === row.answer;
                     cellCls += ok ? ' !border-solid !border-emerald-500 bg-emerald-900/30' : ' !border-solid !border-red-500 bg-red-900/30';
                     cell += ok ? '<span class="text-3xl">✅</span>'
-                               : `<span class="text-3xl">❌</span><span class="flex flex-col items-center gap-1 text-emerald-300 font-bold text-base">正確答案<span class="answer-thumb"><img src="${optionOf(row.answer).img}" alt="${esc(optionOf(row.answer).text)}"></span></span>`;
+                               : `<span class="text-3xl">❌</span><span class="flex flex-col items-center gap-1 text-emerald-300 font-bold text-xl">正確答案<span class="answer-thumb"><img src="${optionOf(row.answer).img}" alt="${esc(optionOf(row.answer).text)}"></span></span>`;
                 }
-                return `<tr><td class="font-bold text-white text-2xl w-[22%]">${row.food}</td><td class="text-xl w-[22%]">${row.prog}</td><td><div class="${cellCls}" data-slot="${i}">${cell}</div></td></tr>`;
+                return `<tr><td class="font-bold text-white text-xl w-[22%]">${row.food}</td><td class="text-xl w-[22%]">${row.prog}</td><td><div class="${cellCls}" data-slot="${i}">${cell}</div></td></tr>`;
             }).join('');
 
             // 選項區：還沒放進表格的選項
@@ -1385,7 +1385,7 @@
             const correct = QUIZ_ROWS.filter((row, i) => quiz.slots[i] === row.answer).length;
 
             const table = `
-                <table class="concept-table w-full text-lg text-center">
+                <table class="concept-table w-full text-xl text-center">
                     <thead><tr><th>點餐大師</th><th>程式設計</th><th>Scratch</th></tr></thead>
                     <tbody class="text-gray-100">${rows}</tbody>
                 </table>`;
@@ -1401,9 +1401,9 @@
                 <div class="flex gap-4 items-start">
                     <div class="flex-1 min-w-0">${table}</div>
                     <div class="w-[260px] shrink-0 flex flex-col gap-3">
-                        <div class="text-sky-300 font-bold">🧩 Scratch 積木圖<br><span class="text-gray-400 font-normal text-sm">拖到左邊表格的 Scratch 欄</span></div>
+                        <div class="text-sky-300 font-bold text-xl">🧩 Scratch 積木圖<br><span class="text-gray-400 font-normal text-xl">拖到左邊表格的 Scratch 欄</span></div>
                         <div id="quizPool" class="min-h-[134px] flex flex-col items-center justify-center gap-4 p-3 bg-[#111827] border-2 border-dashed border-sky-900 rounded-xl">
-                            ${pool.length ? pool.map(optionChip).join('') : '<span class="text-gray-600 text-center">（積木圖都放進表格了，可以拖回這裡）</span>'}
+                            ${pool.length ? pool.map(optionChip).join('') : '<span class="text-gray-600 text-center text-xl">（積木圖都放進表格了，可以拖回這裡）</span>'}
                         </div>
                         <button onclick="submitQuiz()" ${filled ? '' : 'disabled'} class="bg-[#759e66] hover:bg-[#5a7d4e] disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-xl font-black py-2 rounded-full shadow-lg">送出答案</button>
                         ${filled ? '' : `<div class="text-gray-500 text-sm text-center -mt-2">${QUIZ_ROWS.length} 個格子都放好積木圖後才能送出</div>`}
