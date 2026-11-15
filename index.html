@@ -233,9 +233,7 @@
 
         <!-- 第 4 排：各欄下方資訊 -->
         <div id="info1" class="bg-black border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center gap-3 text-sm text-gray-400 text-center"></div>
-        <div class="bg-[#0a0a0a] border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center text-sm text-gray-400 whitespace-nowrap">
-            <span>螢幕上的套餐按鈕 <b id="moduleCount" class="text-yellow-400 text-xl">0</b> / 5 個</span>
-        </div>
+        <div class="bg-[#0a0a0a] border-t border-r border-gray-800"></div>
         <div class="relative bg-black border-t border-gray-800 px-4 py-2 flex flex-col justify-center text-sm text-gray-400">
             <!-- 過程中顯示完成進度；有錯顯示「錯誤請修正」；全部完成換成成功橫幅 -->
             <div class="flex flex-col gap-1 pb-1.5">
@@ -587,14 +585,14 @@
         // 依關卡更新欄位標題與提示
         function renderStageText() {
             const heads = {
-                1: ['1. 今天顧客點餐', '2. 定義套餐', '3. 呼叫套餐（點餐）'],
-                2: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 呼叫套餐（點餐）']
+                1: ['1. 今天顧客點餐', '2. 定義套餐', '3. 點餐（呼叫套餐＋單點）'],
+                2: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 點餐（呼叫套餐＋單點）']
             }[stage];
             heads.forEach((t, i) => { document.getElementById('head' + (i + 1)).textContent = t; });
 
             const tips = {
-                1: ['💡 <span class="uncov-sample">虛線框</span>＝還沒有被套餐包含的品項；<span class="text-red-400 font-bold">紅框</span>＝套餐',
-                    '💡 點餐螢幕只能放5個套餐按鈕，在左側訂單選取2~3個餐點來<b class="text-gray-200">建立套餐</b>。',
+                1: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，<b class="text-gray-200">找出經常出現的餐點組合</b>，定義為套餐；<span class="text-red-400 font-bold">紅框</span>＝套餐`,
+                    '💡 點餐螢幕只能放<b class="text-gray-200">5個套餐按鈕</b>，在左側訂單選取2~3個餐點來<b class="text-gray-200">建立套餐</b>。',
                     '💡 點選某一單，再點<b class="text-gray-200">套餐</b>或<b class="text-gray-200">單點</b>'],
                 2: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
                     '🔒 螢幕上的套餐按鈕<b class="text-gray-200">已經固定</b>，不能再修改',
@@ -1074,10 +1072,9 @@
             const cov = computeCoverage();
             const covered = cov.reduce((s, row) => s + row.filter(Boolean).length, 0);
             const big = (n) => `<b class="text-white text-xl">${n}</b>`;
-            document.getElementById('info1').innerHTML = stage === 1
-                ? `<span>${big(total)}張訂單，${big(totalItems)}個餐點，<b class="text-white">找出經常出現的餐點組合</b>，定義為套餐</span>`
+            // 第 1 關的說明已移到左上提示，左下留空；第 2 關顯示套餐用得上的比例
+            document.getElementById('info1').innerHTML = stage === 1 ? ''
                 : `<span>訂單 ${big(total)} 張・共 ${big(totalItems)} 個餐點</span><span class="text-gray-700">｜</span><span>套餐包含 ${big(Math.floor(covered / totalItems * 100))}%</span>`;
-            document.getElementById('moduleCount').innerText = modules.length;
 
             // 右下：進度、錯誤、完成
             document.getElementById('clickCount').innerText = clicks;
