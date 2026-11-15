@@ -216,7 +216,7 @@
                 <!-- 點餐機螢幕：只放得下 5 個套餐按鈕 -->
                 <div class="bg-black border-4 border-gray-600 rounded-xl p-2 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
                     <div class="text-sm font-bold text-[#ffb480] flex items-center justify-between px-1 pb-1.5">
-                        <span>📟 點餐機螢幕：套餐按鈕</span>
+                        <span>套餐按鈕</span>
                         <span id="moduleCountText" class="text-xs text-gray-400 font-normal"></span>
                     </div>
                     <div id="moduleList" class="flex flex-col gap-2"></div>
@@ -232,11 +232,7 @@
         </div>
 
         <!-- 第 4 排：各欄下方資訊 -->
-        <div class="bg-black border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center gap-3 text-sm text-gray-400 whitespace-nowrap">
-            <span>訂單 <b id="orderCount" class="text-white text-xl">0</b> 張・共 <b id="totalItemsCount" class="text-white text-xl">0</b> 個品項</span>
-            <span class="text-gray-700">｜</span>
-            <span>套餐包含 <b id="coveragePercent" class="text-white text-xl">0</b>%</span>
-        </div>
+        <div id="info1" class="bg-black border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center gap-3 text-sm text-gray-400 text-center"></div>
         <div class="bg-[#0a0a0a] border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center text-sm text-gray-400 whitespace-nowrap">
             <span>螢幕上的套餐按鈕 <b id="moduleCount" class="text-yellow-400 text-xl">0</b> / 5 個</span>
         </div>
@@ -313,7 +309,7 @@
             { id: 4, items: ['m5', 'm9', 'm19', 'm11'] },
             { id: 5, items: ['m2', 'm12', 'm17'] },
             { id: 6, items: ['m8', 'm12', 'm17'] },
-            { id: 7, items: ['m1', 'm15', 'm18', 'm12'] },
+            { id: 7, items: ['m1', 'm18', 'm12'] },
             { id: 8, items: ['m4', 'm20', 'm16'] },
             { id: 9, items: ['m5', 'm9', 'm19'] },
             { id: 10, items: ['m2', 'm12', 'm10'] },
@@ -341,7 +337,7 @@
 
         // perfect：電腦搜尋所有可能的 5 組套餐後得到的最少點擊次數，達到即為「完美」
         const STAGES = {
-            1: { name: '今天 15 單', orders: TODAY_ORDERS, perfect: 27, baseline: sumItems(TODAY_ORDERS) },
+            1: { name: '今天 15 單', orders: TODAY_ORDERS, perfect: 28, baseline: sumItems(TODAY_ORDERS) },
             2: { name: '明天 10 單', orders: TOMORROW_ORDERS, perfect: 19, baseline: sumItems(TOMORROW_ORDERS) },
             3: { name: '概念對照' }
         };
@@ -591,14 +587,14 @@
         // 依關卡更新欄位標題與提示
         function renderStageText() {
             const heads = {
-                1: ['1. 常見顧客訂單', '2. 定義套餐', '3. 出餐（呼叫套餐）'],
-                2: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 出餐（呼叫套餐）']
+                1: ['1. 今天顧客訂單', '2. 定義套餐', '3. 呼叫套餐（點餐）'],
+                2: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 呼叫套餐（點餐）']
             }[stage];
             heads.forEach((t, i) => { document.getElementById('head' + (i + 1)).textContent = t; });
 
             const tips = {
                 1: ['💡 <span class="uncov-sample">虛線框</span>＝還沒有被套餐包含的品項；<span class="text-red-400 font-bold">紅框</span>＝套餐',
-                    '💡 點餐機螢幕<b class="text-gray-200">只放得下 5 個套餐按鈕</b>：在左側訂單按住滑鼠拖過 2～3 個餐點來建立',
+                    '💡 點餐螢幕只能放5個套餐按鈕，在左側訂單選取2~3個餐點來<b class="text-gray-200">建立套餐</b>。',
                     '💡 點選某一單，再點<b class="text-gray-200">套餐</b>或<b class="text-gray-200">單點</b>'],
                 2: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
                     '🔒 螢幕上的套餐按鈕<b class="text-gray-200">已經固定</b>，不能再修改',
@@ -1077,9 +1073,10 @@
             const totalItems = sumItems(orders);
             const cov = computeCoverage();
             const covered = cov.reduce((s, row) => s + row.filter(Boolean).length, 0);
-            document.getElementById('orderCount').innerText = total;
-            document.getElementById('totalItemsCount').innerText = totalItems;
-            document.getElementById('coveragePercent').innerText = Math.floor(covered / totalItems * 100);
+            const big = (n) => `<b class="text-white text-xl">${n}</b>`;
+            document.getElementById('info1').innerHTML = stage === 1
+                ? `<span>${big(total)}張訂單，${big(totalItems)}個餐點，<b class="text-white">找出經常出現的餐點組合</b>，定義為套餐</span>`
+                : `<span>訂單 ${big(total)} 張・共 ${big(totalItems)} 個餐點</span><span class="text-gray-700">｜</span><span>套餐包含 ${big(Math.floor(covered / totalItems * 100))}%</span>`;
             document.getElementById('moduleCount').innerText = modules.length;
 
             // 右下：進度、錯誤、完成
