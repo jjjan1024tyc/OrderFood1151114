@@ -286,6 +286,14 @@
         </div>
     </div>
 
+    <!-- 第 4 關：Scratch 積木圖原尺寸放大 -->
+    <div id="zoomModal" onclick="closeZoom()" class="fixed inset-0 bg-black/85 z-[70] hidden flex-col items-center justify-center p-4 gap-4 cursor-zoom-out">
+        <div class="bg-white rounded-xl p-4 shadow-2xl max-w-[92vw] max-h-[80vh] overflow-auto">
+            <img id="zoomImg" alt="" class="block" style="image-rendering:auto;">
+        </div>
+        <button onclick="closeZoom()" class="bg-[#ffc72c] hover:bg-yellow-400 text-black text-xl font-black py-2 px-8 rounded-full">✕ 關閉</button>
+    </div>
+
     <!-- 第 4 關：概念對照 (把 Scratch 選項拖到表格中) -->
     <section id="quizPanel" class="hidden flex-1 min-h-0 overflow-y-auto hide-scrollbar bg-[#0a0a0a]">
         <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
@@ -523,6 +531,7 @@
                     hideConfirm();
                     hideInfo();
                     hideCompare();
+                    closeZoom();
                 }
             });
             linkScroll(document.getElementById('ordersScroll'), document.getElementById('trayScroll'));
@@ -1374,7 +1383,7 @@
                     const ok = opt === row.answer;
                     cellCls += ok ? ' !border-solid !border-emerald-500 bg-emerald-900/30' : ' !border-solid !border-red-500 bg-red-900/30';
                     cell += ok ? '<span class="text-3xl">✅</span>'
-                               : `<span class="text-3xl">❌</span><span class="flex flex-col items-center gap-1 text-emerald-300 font-bold text-xl">正確答案<span class="answer-thumb"><img src="${optionOf(row.answer).img}" alt="${esc(optionOf(row.answer).text)}"></span></span>`;
+                               : `<span class="text-3xl">❌</span><span class="flex flex-col items-center gap-1 text-emerald-300 font-bold text-xl">正確答案<span class="answer-thumb cursor-zoom-in" data-zoom="${row.answer}"><img src="${optionOf(row.answer).img}" alt="${esc(optionOf(row.answer).text)}"></span></span>`;
                 }
                 return `<tr><td class="font-bold text-white text-xl w-[22%]">${row.food}</td><td class="text-xl w-[22%]">${row.prog}</td><td><div class="${cellCls}" data-slot="${i}">${cell}</div></td></tr>`;
             }).join('');
@@ -1401,7 +1410,7 @@
                 <div class="flex gap-4 items-start">
                     <div class="flex-1 min-w-0">${table}</div>
                     <div class="w-[260px] shrink-0 flex flex-col gap-3">
-                        <div class="text-sky-300 font-bold text-xl">🧩 Scratch 積木圖<br><span class="text-gray-400 font-normal text-xl">拖到左邊表格的 Scratch 欄</span></div>
+                        <div class="text-sky-300 font-bold text-xl">🧩 Scratch 積木圖<br><span class="text-gray-400 font-normal text-xl">拖到左邊表格的 Scratch 欄<br>🔍 點一下圖片可以放大看</span></div>
                         <div id="quizPool" class="min-h-[134px] flex flex-col items-center justify-center gap-4 p-3 bg-[#111827] border-2 border-dashed border-sky-900 rounded-xl">
                             ${pool.length ? pool.map(optionChip).join('') : '<span class="text-gray-600 text-center text-xl">（積木圖都放進表格了，可以拖回這裡）</span>'}
                         </div>
@@ -1412,22 +1421,57 @@
         }
 
         // ---------- 拖曳選項 ----------
-        let qdrag = null;   // { opt, from (格子編號或 null=選項區), ghost, src }
+        // 點一下圖片 (沒有拖動)：開啟原尺寸大圖；按住移動超過一點距離：開始拖曳
+        let qdrag = null;   // { opt, from (格子編號或 null=選項區), ghost (拖曳中才有), src, x, y }
+        const DRAG_START = 6;   // 移動超過幾 px 才算拖曳
 
         function quizDown(e) {
-            if (stage !== QUIZ_STAGE || quiz.submitted) return;
+            if (stage !== QUIZ_STAGE) return;
             if (e.button !== undefined && e.button !== 0) return;
+            const zoomEl = e.target.closest('[data-zoom]');
             const chip = e.target.closest('[data-opt]');
+            // 送出後、或點的是正確答案的小圖：只能放大看
+            if (quiz.submitted || (zoomEl && !chip)) {
+                const id = (chip && chip.dataset.opt) || (zoomEl && zoomEl.dataset.zoom);
+                if (id) openZoom(id);
+                return;
+            }
             if (!chip) return;
             e.preventDefault();
             const from = chip.closest('[data-slot]');
-            const ghost = chip.cloneNode(true);
+            qdrag = { opt: chip.dataset.opt, from: from ? Number(from.dataset.slot) : null, ghost: null, src: chip, x: e.clientX, y: e.clientY };
+        }
+
+        function startGhost(e) {
+            const ghost = qdrag.src.cloneNode(true);
             ghost.classList.add('quiz-ghost');
-            ghost.style.left = e.clientX + 'px';
-            ghost.style.top = e.clientY + 'px';
             document.body.appendChild(ghost);
-            chip.style.opacity = '0.3';
-            qdrag = { opt: chip.dataset.opt, from: from ? Number(from.dataset.slot) : null, ghost, src: chip };
+            qdrag.src.style.opacity = '0.3';
+            qdrag.ghost = ghost;
+        }
+
+        // ---------- 原尺寸大圖 ----------
+        function openZoom(id) {
+            const o = optionOf(id);
+            if (!o.img) return;
+            const img = document.getElementById('zoomImg');
+            // 保持原本的長寬比例放大，最高到畫面高度的 70%
+            img.onload = () => {
+                const h = Math.min(window.innerHeight * 0.7, img.naturalHeight * 2.5);
+                img.style.height = h + 'px';
+                img.style.width = 'auto';
+            };
+            img.src = o.img;
+            img.alt = o.text;
+            const modal = document.getElementById('zoomModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeZoom() {
+            const modal = document.getElementById('zoomModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
 
         function dropTarget(e) {
@@ -1439,6 +1483,10 @@
         function quizMove(e) {
             if (!qdrag) return;
             e.preventDefault();
+            if (!qdrag.ghost) {
+                if (Math.hypot(e.clientX - qdrag.x, e.clientY - qdrag.y) < DRAG_START) return;
+                startGhost(e);
+            }
             qdrag.ghost.style.left = e.clientX + 'px';
             qdrag.ghost.style.top = e.clientY + 'px';
             document.querySelectorAll('.drop-hover').forEach(el => el.classList.remove('drop-hover'));
@@ -1449,7 +1497,7 @@
 
         function quizCancel() {
             if (!qdrag) return;
-            qdrag.ghost.remove();
+            if (qdrag.ghost) qdrag.ghost.remove();
             qdrag.src.style.opacity = '';
             qdrag = null;
             document.querySelectorAll('.drop-hover').forEach(el => el.classList.remove('drop-hover'));
@@ -1457,9 +1505,11 @@
 
         function quizUp(e) {
             if (!qdrag) return;
+            const dragged = !!qdrag.ghost;
             const { slot, pool } = dropTarget(e);
             const { opt, from } = qdrag;
             quizCancel();
+            if (!dragged) { openZoom(opt); return; }   // 只是點一下：看大圖
             if (slot) {
                 const to = Number(slot.dataset.slot);
                 const prev = quiz.slots[to];
