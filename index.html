@@ -51,6 +51,8 @@
         .can-define .chip.cov { cursor: not-allowed; }
         /* 還沒有被任何套餐包含的品項：灰字 + 虛線框 */
         .chip.uncov { border-style: dashed; border-color: #6b7280; color: #9ca3af; }
+        /* 第 1 關沒有套餐：餐點用一般實線框 */
+        .plain .chip.uncov { border-style: solid; border-color: #4b5563; color: #e5e7eb; }
         /* 已被套餐包含的品項：橘色標示 */
         .chip.cov { background: rgba(234, 88, 12, 0.25); color: #fed7aa; border-color: rgba(234, 88, 12, 0.6); }
         /* 拖曳中被選取的餐點 */
@@ -214,7 +216,13 @@
                 </div>
                 <div id="errorBox" class="hidden min-w-0 rounded-lg px-2 py-0.5 text-center font-bold bg-red-900 text-white border border-red-700"></div>
                 <div id="successBanner" class="hidden min-w-0 rounded-lg px-2 py-0.5 text-lg text-center font-black bg-[#e8c338] text-black border border-yellow-500 shadow-[0_0_12px_rgba(232,195,56,0.5)] whitespace-nowrap overflow-hidden text-ellipsis"></div>
-                <span class="text-center whitespace-nowrap">點擊 <b id="clickCount" class="text-yellow-400 text-xl">0</b> 次</span>
+                <!-- 點擊統計：成功 / 錯誤 / 總點擊 (累計，不會因為移除或復原而減少) -->
+                <div class="flex justify-center gap-3 whitespace-nowrap">
+                    <span>成功 <b id="okCount" class="text-emerald-400 text-xl">0</b></span>
+                    <span>錯誤 <b id="errCount" class="text-red-400 text-xl">0</b></span>
+                    <span>總點擊 <b id="clickCount" class="text-yellow-400 text-xl">0</b></span>
+                </div>
+                <button id="compareBtn" onclick="showCompare()" class="hidden bg-sky-700 hover:bg-sky-600 text-white text-sm font-bold py-1 rounded-full">📊 和第 1 關比一比</button>
                 <button id="nextBtn" onclick="advance()" class="hidden bg-[#759e66] hover:bg-[#5a7d4e] text-white font-black py-1 rounded-full shadow-[0_0_12px_rgba(117,158,102,0.6)] animate-pulse"></button>
             </div>
         </div>
@@ -228,14 +236,14 @@
         <div class="bg-[#111] border-r border-gray-800 px-4 py-3 min-h-0 flex flex-col">
             <div class="flex-1 min-h-0 overflow-y-auto hide-scrollbar flex flex-col gap-2 pr-1">
                 <!-- 點餐機螢幕：只放得下 5 個套餐按鈕 -->
-                <div class="bg-black border-4 border-gray-600 rounded-xl p-2 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
+                <div id="moduleScreen" class="bg-black border-4 border-gray-600 rounded-xl p-2 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
                     <div class="text-sm font-bold text-[#ffb480] flex items-center justify-between px-1 pb-1.5">
                         <span>套餐按鈕</span>
                         <span id="moduleCountText" class="text-xs text-gray-400 font-normal"></span>
                     </div>
                     <div id="moduleList" class="flex flex-col gap-2"></div>
                 </div>
-                <div class="text-sm font-bold text-gray-300 mt-1">🍽️ 單點品項</div>
+                <div id="menuTitle" class="text-sm font-bold text-gray-300 mt-1">🍽️ 單點品項</div>
                 <div id="menuContainer" class="flex flex-col gap-1.5 pb-1"></div>
             </div>
         </div>
@@ -252,19 +260,31 @@
     </main>
     <div class="fixed bottom-0.5 right-1.5 text-[9px] text-gray-700 leading-none pointer-events-none z-20">桃園市建國國中詹智傑老師設計(2026)</div>
 
-    <!-- 第 2 關還沒解鎖時：內容是空的，只顯示提醒 -->
+    <!-- 第 2、3 關還沒解鎖時：內容是空的，只顯示提醒 -->
     <section id="lockPanel" class="hidden flex-1 min-h-0 flex-col items-center justify-center gap-4 bg-[#0a0a0a] text-center px-4">
         <div class="text-7xl">🔒</div>
-        <div class="text-3xl font-black text-[#ffc72c]">請先完成第 1 關</div>
-        <div class="text-gray-300 text-xl leading-relaxed">完成第 1 關的 15 單後，<br>按右上角的「<b class="text-white">進入第 2 關 ▶</b>」才能開始第 2 關。</div>
-        <button onclick="viewStage(1)" class="mt-2 bg-[#759e66] hover:bg-[#5a7d4e] text-white text-xl font-black py-2 px-8 rounded-full shadow-lg">◀ 回到第 1 關</button>
+        <div id="lockTitle" class="text-3xl font-black text-[#ffc72c]"></div>
+        <div id="lockText" class="text-gray-300 text-xl leading-relaxed"></div>
+        <button id="lockBack" class="mt-2 bg-[#759e66] hover:bg-[#5a7d4e] text-white text-xl font-black py-2 px-8 rounded-full shadow-lg"></button>
     </section>
 
-    <!-- 第 3 關：概念對照 (把 Scratch 選項拖到表格中) -->
+    <!-- 第 2 關完成時：和第 1 關比較點擊次數 -->
+    <div id="compareModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+        <div class="bg-[#111] border-2 border-[#ffc72c] rounded-2xl p-6 max-w-2xl w-full shadow-[0_0_50px_rgba(255,199,44,0.3)]">
+            <div class="text-3xl font-black text-[#ffc72c] mb-1 text-center">📊 模組的效率</div>
+            <div class="text-gray-400 text-center mb-4">同樣的 15 單，用單點和用套餐差多少？</div>
+            <div id="compareBody"></div>
+            <div class="text-right mt-5">
+                <button onclick="hideCompare()" class="bg-[#ffc72c] hover:bg-yellow-400 text-black font-black py-2 px-6 rounded-full">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第 4 關：概念對照 (把 Scratch 選項拖到表格中) -->
     <section id="quizPanel" class="hidden flex-1 min-h-0 overflow-y-auto hide-scrollbar bg-[#0a0a0a]">
         <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
             <div class="text-center">
-                <div class="text-3xl font-black text-[#ffc72c]">第 3 關：概念對照</div>
+                <div class="text-3xl font-black text-[#ffc72c]">第 4 關：概念對照</div>
                 <div class="text-gray-300 text-lg mt-1">你剛剛做的事，在程式設計裡就叫做「<b class="text-white">模組化</b>」</div>
             </div>
             <div class="text-gray-300 text-lg bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-2">
@@ -332,12 +352,14 @@
 
         const sumItems = (orders) => orders.reduce((s, o) => s + o.items.length, 0);
 
-        // perfect：電腦搜尋所有可能的 5 組套餐後得到的最少點擊次數，達到即為「完美」
+        // perfect：最少點擊次數 (第 2、3 關是電腦搜尋所有可能的 5 組套餐得到的最佳解)
         const STAGES = {
-            1: { name: '今天 15 單', orders: TODAY_ORDERS, perfect: 28, baseline: sumItems(TODAY_ORDERS) },
-            2: { name: '明天 10 單', orders: TOMORROW_ORDERS, perfect: 19, baseline: sumItems(TOMORROW_ORDERS) },
-            3: { name: '概念對照' }
+            1: { name: '單點 15 單', orders: TODAY_ORDERS, perfect: sumItems(TODAY_ORDERS) },
+            2: { name: '套餐 15 單', orders: TODAY_ORDERS, perfect: 28 },
+            3: { name: '明天 10 單', orders: TOMORROW_ORDERS, perfect: 19 },
+            4: { name: '概念對照' }
         };
+        const QUIZ_STAGE = 4;
 
         const MAX_MODULES = 5;      // 點餐機螢幕只放得下 5 個套餐按鈕
         const MIN_ITEMS = 2;        // 每組套餐最少品項
@@ -361,7 +383,7 @@
 
         let stage = 1;              // 目前顯示的關卡
         let unlocked = 1;           // 目前進行到第幾關 (之前的關卡已鎖定)
-        const stageData = {};       // 第 1、2 關各自的狀態 {modules, trays, activeOrder, history}
+        const stageData = {};       // 第 1～3 關各自的狀態 {modules, trays, activeOrder, history}
 
         // 目前顯示中的關卡狀態 (第 1、2 關)
         let orders = TODAY_ORDERS;
@@ -373,7 +395,9 @@
         // 第 3 關作答狀態：每一列放了哪個選項
         const quiz = { slots: QUIZ_ROWS.map(() => null), submitted: false, order: shuffle(QUIZ_OPTIONS.map(o => o.id)) };
 
-        const best = { 1: null, 2: null, 3: null };   // 第 1、2 關最少點擊次數；第 3 關答對題數
+        const best = { 4: null };   // 第 4 關答對題數 (送出後才有)
+        // 各關的點擊統計 (累計，移除、清空、復原都不會減少)
+        const counts = { 1: { ok: 0, err: 0 }, 2: { ok: 0, err: 0 }, 3: { ok: 0, err: 0 } };
         let lastSolvedStamp = '';
 
         // ===================== 共用小工具 =====================
@@ -395,11 +419,12 @@
             lastSolvedStamp = `${now.getMonth() + 1}/${now.getDate()} ${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
         }
 
-        // 目前這一關還可以操作 (第 3 關隨時可以作答，送出後鎖定)
-        const isEditable = () => stage === 3 ? !quiz.submitted : stage === unlocked;
-        const isLockedView = () => stage === 2 && unlocked < 2;  // 第 1 關還沒完成就點開第 2 關
-        const canDefine = () => stage === 1 && unlocked === 1;  // 只有第 1 關可以建立、刪除套餐
-        const canServe = () => isEditable() && stage < 3;       // 第 1、2 關可以出餐
+        // 目前這一關還可以操作 (第 4 關隨時可以作答，送出後鎖定)
+        const isEditable = () => stage === QUIZ_STAGE ? !quiz.submitted : stage === unlocked;
+        const isLockedView = () => (stage === 2 || stage === 3) && unlocked < stage;  // 前一關還沒完成就點開
+        const canDefine = () => stage === 2 && unlocked === 2;  // 只有第 2 關可以建立、刪除套餐
+        const canServe = () => isEditable() && stage < QUIZ_STAGE;  // 第 1～3 關可以點餐
+        const hasModules = () => stage >= 2;                     // 第 1 關沒有套餐
 
         let toastTimer1 = null, toastTimer2 = null;
         function showMessage(text, type = 'error') {
@@ -452,7 +477,7 @@
         }
 
         function undo() {
-            if (stage === 3 || isLockedView()) return;
+            if (stage === QUIZ_STAGE || isLockedView()) return;
             if (history.length === 0) {
                 showMessage('沒有可以復原的動作', 'info');
                 return;
@@ -466,7 +491,7 @@
         }
 
         function updateUndoBtn() {
-            document.getElementById('undoBtn').disabled = stage === 3 || isLockedView() || history.length === 0;
+            document.getElementById('undoBtn').disabled = stage === QUIZ_STAGE || isLockedView() || history.length === 0;
         }
 
         // ===================== 初始化 =====================
@@ -489,6 +514,7 @@
                 } else if (e.key === 'Escape') {
                     hideConfirm();
                     hideInfo();
+                    hideCompare();
                 }
             });
             linkScroll(document.getElementById('ordersScroll'), document.getElementById('trayScroll'));
@@ -498,7 +524,7 @@
         };
 
         function updateAll() {
-            const isQuiz = stage === 3;
+            const isQuiz = stage === QUIZ_STAGE;
             const isLock = isLockedView();
             document.getElementById('mainGrid').classList.toggle('hidden', isQuiz || isLock);
             document.getElementById('quizPanel').classList.toggle('hidden', !isQuiz);
@@ -506,6 +532,12 @@
             lockPanel.classList.toggle('hidden', !isLock);
             lockPanel.classList.toggle('flex', isLock);
             if (isLock) {
+                const prev = stage - 1;
+                document.getElementById('lockTitle').textContent = `請先完成第 ${prev} 關`;
+                document.getElementById('lockText').innerHTML = `完成第 ${prev} 關的 ${STAGES[prev].orders.length} 單後，<br>按右上角的「<b class="text-white">進入第 ${stage} 關 ▶</b>」才能開始第 ${stage} 關。`;
+                const back = document.getElementById('lockBack');
+                back.textContent = `◀ 回到第 ${unlocked} 關`;
+                back.onclick = () => viewStage(unlocked);
                 renderScoreboard();
                 updateUndoBtn();
                 return;
@@ -528,14 +560,14 @@
 
         // ===================== 關卡切換 =====================
 
-        // 只儲存真正在進行的第 1、2 關 (第 2 關還沒解鎖時畫面是空的，不用存)
+        // 只儲存真正在進行的第 1～3 關 (還沒解鎖的關卡畫面是空的，不用存)
         function saveStage() {
-            if (stage === 1 || (stage === 2 && unlocked >= 2)) stageData[stage] = { modules, trays, activeOrder, history };
+            if (stage < QUIZ_STAGE && unlocked >= stage) stageData[stage] = { modules, trays, activeOrder, history };
         }
 
         function loadStage(s) {
             stage = s;
-            if (s === 3 || !stageData[s]) return;
+            if (s === QUIZ_STAGE || !stageData[s]) return;
             orders = STAGES[s].orders;
             const d = stageData[s];
             modules = d.modules;
@@ -550,7 +582,7 @@
             saveStage();
             loadStage(s);
             updateAll();
-            if (s < 3 && !isLockedView()) {
+            if (s < QUIZ_STAGE && !isLockedView()) {
                 document.getElementById('ordersScroll').scrollTop = 0;
                 document.getElementById('trayScroll').scrollTop = 0;
             }
@@ -558,25 +590,36 @@
 
         // 進入下一關
         function advance() {
-            if (!isEditable() || stage >= 3 || !isSolved()) return;
+            if (!isEditable() || stage >= QUIZ_STAGE || !isSolved()) return;
             const next = stage + 1;
-            const text = next === 2
-                ? '進入第 2 關後，點餐機螢幕上的 5 個套餐按鈕就固定了，第 1 關不能再修改。\n\n確定要進入第 2 關嗎？'
-                : '進入第 3 關後，第 2 關就不能再修改。\n\n確定要進入第 3 關嗎？';
+            const text = {
+                2: '進入第 2 關後，第 1 關就不能再修改。\n\n確定要進入第 2 關嗎？',
+                3: '進入第 3 關後，螢幕上的 5 個套餐按鈕就固定了，第 2 關不能再修改。\n\n確定要進入第 3 關嗎？',
+                4: '進入第 4 關後，第 3 關就不能再修改。\n\n確定要進入第 4 關嗎？'
+            }[next];
             askConfirm(text, () => {
                 saveStage();
                 unlocked = next;
                 if (next === 2) {
-                    stageData[2] = { modules: stageData[1].modules, trays: TOMORROW_ORDERS.map(() => []), activeOrder: 0, history: [] };
+                    // 第 2 關：同樣的 15 單，這次可以建立套餐
+                    stageData[2] = { modules: [], trays: TODAY_ORDERS.map(() => []), activeOrder: 0, history: [] };
+                } else if (next === 3) {
+                    // 第 3 關：新的 10 單，沿用第 2 關的套餐 (不能修改)
+                    stageData[3] = { modules: stageData[2].modules, trays: TOMORROW_ORDERS.map(() => []), activeOrder: 0, history: [] };
                 }
                 loadStage(next);
                 updateAll();
-                if (next === 2) {
+                if (next < QUIZ_STAGE) {
                     document.getElementById('ordersScroll').scrollTop = 0;
                     document.getElementById('trayScroll').scrollTop = 0;
-                    showInfo('第 2 關：明天的新訂單', `明天來了 <b class="text-white">10 張新訂單</b>！<br>點餐機螢幕上的 5 個套餐按鈕<b class="text-[#ffc72c]">已經固定，不能修改</b>。<br><br>看看你昨天設計的套餐，明天還好不好用？<br><span class="text-gray-400 text-base">（全部單點要 ${STAGES[2].baseline} 次）</span>`);
+                }
+                if (next === 2) {
+                    const c = counts[1];
+                    showInfo('第 2 關：用套餐點餐', `同樣的 <b class="text-white">15 張訂單</b>，這次可以<b class="text-[#ffc72c]">建立套餐</b>了！<br>點餐螢幕只能放 5 個套餐按鈕，找出經常一起出現的餐點組合。<br><br>第 1 關你總共點了 <b class="text-white">${c.ok + c.err}</b> 次，<br>這次能少點幾次？`);
+                } else if (next === 3) {
+                    showInfo('第 3 關：明天的新訂單', `明天來了 <b class="text-white">10 張新訂單</b>！<br>螢幕上的 5 個套餐按鈕<b class="text-[#ffc72c]">已經固定，不能修改</b>。<br><br>看看你設計的套餐，明天還好不好用？`);
                 } else if (!quiz.submitted) {
-                    showInfo('第 3 關：概念對照', `你剛剛設計套餐、用套餐出餐，其實就是程式設計裡的「<b class="text-white">模組化</b>」！<br><br>請把 <b class="text-sky-300">Scratch 選項</b>拖到表格中正確的位置，<br>答對一題 7 分，全對 20 分。`);
+                    showInfo('第 4 關：概念對照', `你剛剛設計套餐、用套餐點餐，其實就是程式設計裡的「<b class="text-white">模組化</b>」！<br><br>請把 <b class="text-sky-300">Scratch 積木圖</b>拖到表格中正確的位置，<br>答對一題 7 分，全對 20 分。`);
                 }
             }, `進入第 ${next} 關`, 'bg-[#759e66] hover:bg-[#5a7d4e]');
         }
@@ -584,22 +627,28 @@
         // 依關卡更新欄位標題與提示
         function renderStageText() {
             const heads = {
-                1: ['1. 今天顧客點餐', '2. 定義套餐', '3. 點餐（呼叫套餐＋單點）'],
-                2: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 點餐（呼叫套餐＋單點）']
+                1: ['1. 今天顧客點餐', '2. 單點品項', '3. 點餐（單點）'],
+                2: ['1. 今天顧客點餐', '2. 定義套餐', '3. 點餐（呼叫套餐＋單點）'],
+                3: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 點餐（呼叫套餐＋單點）']
             }[stage];
             heads.forEach((t, i) => { document.getElementById('head' + (i + 1)).textContent = t; });
 
             const tips = {
-                1: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，<b class="text-gray-200">找出經常出現的餐點組合</b>，定義為套餐；<span class="text-red-400 font-bold">紅框</span>＝套餐`,
+                1: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，這一關<b class="text-gray-200">沒有套餐</b>，每一單都要用單點完成`,
+                    '💡 點選右邊某一單，再點<b class="text-gray-200">單點品項</b>放進托盤。注意右上角的點擊次數！'],
+                2: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，<b class="text-gray-200">找出經常出現的餐點組合</b>，定義為套餐；<span class="text-red-400 font-bold">紅框</span>＝套餐`,
                     '💡 點餐螢幕只能放<b class="text-gray-200">5個套餐按鈕</b>，在左側訂單選取2~3個餐點來<b class="text-gray-200">建立套餐</b>。'],
-                2: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
+                3: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
                     '🔒 螢幕上的套餐按鈕<b class="text-gray-200">已經固定</b>，不能再修改']
             }[stage];
             tips.forEach((t, i) => { document.getElementById('tip' + (i + 1)).innerHTML = t; });
+            // 第 1 關沒有套餐：隱藏套餐按鈕區，左欄餐點不用虛線框
+            document.getElementById('moduleScreen').classList.toggle('hidden', !hasModules());
+            document.getElementById('ordersList').classList.toggle('plain', !hasModules());
             // 已鎖定的關卡：右上顯示鎖定提示
             document.getElementById('lockNote').classList.toggle('hidden', isEditable());
-            // 下方資訊列只在第 2 關顯示
-            document.querySelectorAll('.row4').forEach(el => el.classList.toggle('hidden', stage === 1));
+            // 下方資訊列只在第 3 關顯示
+            document.querySelectorAll('.row4').forEach(el => el.classList.toggle('hidden', stage !== 3));
         }
 
         // ===================== 左右兩欄同步捲動、列高對齊 =====================
@@ -619,7 +668,7 @@
 
         // 讓左邊的訂單和右邊的托盤每一列一樣高，捲動時才能逐單對齊
         function syncRowHeights() {
-            if (stage === 3) return;
+            if (stage === QUIZ_STAGE) return;
             const L = document.querySelectorAll('#ordersList > [data-row]');
             const R = document.querySelectorAll('#trayList > [data-row]');
             L.forEach((l, i) => { l.style.minHeight = ''; if (R[i]) R[i].style.minHeight = ''; });
@@ -849,7 +898,7 @@
 
         function renderModules() {
             const list = document.getElementById('moduleList');
-            document.getElementById('moduleCountText').innerText = (stage >= 2 ? '🔒 ' : '') + `${modules.length} / ${MAX_MODULES} 個`;
+            document.getElementById('moduleCountText').innerText = (stage >= 3 ? '🔒 ' : '') + `${modules.length} / ${MAX_MODULES} 個`;
             list.innerHTML = '';
 
             modules.forEach(mod => {
@@ -950,6 +999,9 @@
             const i = activeOrder;
             trays[i].push({ type, ref });
             const st = orderStatus(i);
+            // 點擊統計：點了之後這一單出現不對的餐點，就算錯誤點擊
+            if (st === 'error') counts[stage].err++;
+            else counts[stage].ok++;
             if (st === 'done') {
                 activeOrder = nextIncomplete(i);
                 showMessage(`第 ${orders[i].id} 單出餐正確！`, 'success');
@@ -1064,18 +1116,21 @@
             const statuses = orders.map((_, i) => orderStatus(i));
             const doneCount = statuses.filter(s => s === 'done').length;
             const errorOrders = orders.filter((_, i) => statuses[i] === 'error').map(o => o.id);
-            const clicks = trays.reduce((s, t) => s + t.length, 0);
+            const c = counts[stage];
+            const clicks = c.ok + c.err;
 
             // 左下、中下資訊
             const totalItems = sumItems(orders);
             const cov = computeCoverage();
             const covered = cov.reduce((s, row) => s + row.filter(Boolean).length, 0);
             const big = (n) => `<b class="text-white text-xl">${n}</b>`;
-            // 第 1 關的說明已移到左上提示，左下留空；第 2 關顯示套餐用得上的比例
-            document.getElementById('info1').innerHTML = stage === 1 ? ''
+            // 第 3 關的左下顯示套餐用得上的比例
+            document.getElementById('info1').innerHTML = stage !== 3 ? ''
                 : `<span>訂單 ${big(total)} 張・共 ${big(totalItems)} 個餐點</span><span class="text-gray-700">｜</span><span>套餐包含 ${big(Math.floor(covered / totalItems * 100))}%</span>`;
 
-            // 右下：進度、錯誤、完成
+            // 右上：進度、錯誤、完成、點擊統計
+            document.getElementById('okCount').innerText = c.ok;
+            document.getElementById('errCount').innerText = c.err;
             document.getElementById('clickCount').innerText = clicks;
             const pct = Math.floor(doneCount / total * 100);
             const bar = document.getElementById('doneBar');
@@ -1085,6 +1140,8 @@
 
             const nextBtn = document.getElementById('nextBtn');
             nextBtn.classList.add('hidden');
+            const compareBtn = document.getElementById('compareBtn');
+            compareBtn.classList.add('hidden');
             let state = 'progress';
             if (errorOrders.length > 0) {
                 state = 'error';
@@ -1094,11 +1151,19 @@
                 if (isEditable()) stampNow();
                 const big = (n) => `<span class="text-2xl text-red-600 mx-0.5 leading-none">${n}</span>`;
                 document.getElementById('successBanner').innerHTML = clicks <= STAGES[stage].perfect
-                    ? `🏆 完美！${big(clicks)}次`
-                    : `✅ 全部完成！${big(clicks)}次`;
+                    ? `🏆 完美！總點擊${big(clicks)}次`
+                    : `✅ 全部完成！總點擊${big(clicks)}次`;
                 if (isEditable()) {
                     nextBtn.textContent = `進入第 ${stage + 1} 關 ▶`;
                     nextBtn.classList.remove('hidden');
+                }
+                // 第 2 關完成：和第 1 關比一比 (第一次完成時自動跳出)
+                if (stage === 2) {
+                    compareBtn.classList.remove('hidden');
+                    if (!compareShown) {
+                        compareShown = true;
+                        setTimeout(showCompare, 900);
+                    }
                 }
             }
             document.getElementById('progressLine').classList.toggle('hidden', state !== 'progress');
@@ -1115,16 +1180,50 @@
             renderScoreboard();
         }
 
+        // ---------- 第 2 關完成：和第 1 關比較點擊次數 ----------
+        let compareShown = false;
+
+        function showCompare() {
+            const a = counts[1], b = counts[2];
+            const ta = a.ok + a.err, tb = b.ok + b.err;
+            const saved = ta - tb;
+            const pct = ta > 0 ? Math.round(saved / ta * 100) : 0;
+            const row = (label, x, y, color) => `<tr><td class="text-left font-bold text-gray-300">${label}</td><td class="${color}">${x} 次</td><td class="${color}">${y} 次</td></tr>`;
+            document.getElementById('compareBody').innerHTML = `
+                <table class="concept-table w-full text-xl text-center">
+                    <thead><tr><th></th><th>第 1 關（單點）</th><th>第 2 關（套餐）</th></tr></thead>
+                    <tbody class="font-black">
+                        ${row('成功點擊', a.ok, b.ok, 'text-emerald-400')}
+                        ${row('錯誤點擊', a.err, b.err, 'text-red-400')}
+                        ${row('總點擊', ta, tb, 'text-[#ffc72c] text-2xl')}
+                    </tbody>
+                </table>
+                <div class="mt-4 text-center text-2xl font-black ${saved > 0 ? 'text-[#8bc576]' : 'text-gray-300'}">
+                    ${saved > 0 ? `用套餐少點了 <span class="text-[#ffc72c] text-4xl">${saved}</span> 次，省下 <span class="text-[#ffc72c] text-4xl">${pct}%</span>！` : '這次沒有比較少，再想想哪些餐點常常一起出現？'}
+                </div>
+                <div class="mt-3 text-center text-gray-400">→ 把重複出現的步驟包成<b class="text-white">模組</b>，就能少做很多重複的事</div>`;
+            const modal = document.getElementById('compareModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function hideCompare() {
+            const modal = document.getElementById('compareModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
         // ---------- 計分 (即時) ----------
-        // 第 1 關：每完成一單，單點完成 2 分、有用套餐完成 4 分 (滿分 60)
-        // 第 2 關：每完成一單 2 分 (滿分 20)
-        // 第 3 關：答對 1 題 7 分、2 題 14 分、全對 20 分
-        const STAGE_MAX = { 1: 60, 2: 20, 3: 20 };
-        const synced = { 1: 0, 2: 0 };   // 已上傳的最高分
+        // 第 1 關：每完成一單 1 分 (滿分 15)
+        // 第 2 關：每完成一單，單點完成 1 分、有用套餐完成 3 分 (第 7 單用不到套餐，單點也給 3 分；滿分 45)
+        // 第 3 關：每完成一單 2 分 (滿分 20)
+        // 第 4 關：答對 1 題 7 分、2 題 14 分、全對 20 分
+        const STAGE_MAX = { 1: 15, 2: 45, 3: 20, 4: 20 };
+        const synced = { 1: 0, 2: 0, 3: 0 };   // 已上傳的最高分
 
         // 取得某一關的訂單、托盤、套餐 (目前顯示的關卡用畫面上的資料)
         function stageView(s) {
-            if (s === 2 && unlocked < 2) return null;
+            if (unlocked < s) return null;
             if (s === stage) return { orders, trays, modules };
             const d = stageData[s];
             return d ? { orders: STAGES[s].orders, trays: d.trays, modules: d.modules } : null;
@@ -1133,12 +1232,13 @@
         // 某一單的得分
         function orderPoints(s, order, tray, mods) {
             if (statusOf(order, tray, mods) !== 'done') return 0;
-            if (s === 1) return (order.fullWithoutModule || tray.some(p => p.type === 'module')) ? 4 : 2;
+            if (s === 1) return 1;
+            if (s === 2) return (order.fullWithoutModule || tray.some(p => p.type === 'module')) ? 3 : 1;
             return 2;
         }
 
         function stagePoints(s) {
-            if (s === 3) return best[3] === null ? 0 : QUIZ_SCORES[best[3]];
+            if (s === QUIZ_STAGE) return best[4] === null ? 0 : QUIZ_SCORES[best[4]];
             const v = stageView(s);
             if (!v) return 0;
             return v.orders.reduce((sum, o, i) => sum + orderPoints(s, o, v.trays[i], v.modules), 0);
@@ -1153,18 +1253,18 @@
         function renderScoreboard() {
             let total = 0;
             let html = '<span class="text-gray-400 text-sm font-bold shrink-0 mr-1">🏆 關卡</span>';
-            [1, 2, 3].forEach(s => {
+            [1, 2, 3, 4].forEach(s => {
                 const pts = stagePoints(s);
                 const max = STAGE_MAX[s];
                 total += pts;
                 const ring = s === stage ? ' ring-2 ring-orange-500 ring-offset-1 ring-offset-black' : '';
                 let cls, status;
-                if (s === 2 && unlocked < 2) {
+                if (s < QUIZ_STAGE && unlocked < s) {
                     cls = 'bg-gray-900 border-gray-700 text-gray-500 hover:bg-gray-800';
-                    status = '🔒 先完成第 1 關';
+                    status = `🔒 先完成第 ${s - 1} 關`;
                 } else {
-                    if (s === 3) status = best[3] === null ? '未作答' : `答對 ${best[3]}/${QUIZ_ROWS.length} 題`;
-                    else status = `完成 ${stageDoneCount(s)}/${STAGES[s].orders.length} 單`;
+                    if (s === QUIZ_STAGE) status = best[4] === null ? '未作答' : `答對 ${best[4]}/${QUIZ_ROWS.length} 題`;
+                    else status = `完成 ${stageDoneCount(s)}/${STAGES[s].orders.length}・點擊 ${counts[s].ok + counts[s].err}`;
                     cls = pts >= max ? 'bg-yellow-500 border-yellow-300 text-black hover:bg-yellow-400'
                         : pts > 0 ? 'bg-yellow-500/15 border-yellow-500 text-yellow-300 hover:bg-yellow-500/25'
                         : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-700';
@@ -1173,7 +1273,7 @@
                 html += `<button onclick="viewStage(${s})" class="border rounded-lg px-3 py-0.5 text-sm leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}<span class="${ptsColor} ml-1">${pts}/${max}分</span></span><span class="block text-xs">${status}</span></button>`;
             });
             html += `<span class="shrink-0 ml-1 text-red-500 font-black text-lg">總分 ${total} 分</span>`;
-            html += `<span class="ml-auto text-sm text-gray-400 shrink-0">第 1 關：單點完成 2 分、用套餐完成 4 分${lastSolvedStamp ? `<span class="text-xs text-gray-500 ml-2">${lastSolvedStamp}</span>` : ''}</span>`;
+            html += `<span class="ml-auto text-xs text-gray-500 shrink-0">${lastSolvedStamp}</span>`;
             document.getElementById('scoreboard').innerHTML = html;
         }
 
@@ -1234,7 +1334,7 @@
         let qdrag = null;   // { opt, from (格子編號或 null=選項區), ghost, src }
 
         function quizDown(e) {
-            if (stage !== 3 || quiz.submitted) return;
+            if (stage !== QUIZ_STAGE || quiz.submitted) return;
             if (e.button !== undefined && e.button !== 0) return;
             const chip = e.target.closest('[data-opt]');
             if (!chip) return;
@@ -1295,7 +1395,7 @@
             if (quiz.submitted || !quiz.slots.every(Boolean)) return;
             askConfirm('送出後就不能修改答案，確定要送出嗎？', () => {
                 quiz.submitted = true;
-                best[3] = QUIZ_ROWS.filter((row, i) => quiz.slots[i] === row.answer).length;
+                best[4] = QUIZ_ROWS.filter((row, i) => quiz.slots[i] === row.answer).length;
                 stampNow();
                 syncScores();
                 renderQuiz();
@@ -1344,7 +1444,8 @@
                     setSyncStatus('⚠️ 上傳失敗，下次完成時會再試', 'text-red-400');
                     showMessage('成績上傳失敗：' + (err && err.message ? err.message : '請檢查網路'));
                 })
-                .saveScores({ s1: stagePoints(1), s2: stagePoints(2), s3: best[3] });
+                .saveScores({ s1: stagePoints(1), s2: stagePoints(2), s3: stagePoints(3), s4: best[4],
+                              c1: counts[1].ok + counts[1].err, c2: counts[2].ok + counts[2].err });
         }
     </script>
 </body>
