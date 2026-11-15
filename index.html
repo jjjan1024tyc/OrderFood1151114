@@ -53,6 +53,9 @@
         .chip.uncov { border-style: dashed; border-color: #6b7280; color: #9ca3af; }
         /* 第 1 關沒有套餐：餐點用一般實線框 */
         .plain .chip.uncov { border-style: solid; border-color: #4b5563; color: #e5e7eb; }
+        /* 第 1 關：已經放對的餐點 (左右同步亮綠框)、放錯的餐點 (紅框) */
+        .chip.got { border: 2px solid #22c55e !important; background: rgba(34, 197, 94, 0.2) !important; color: #fff !important; }
+        .chip.bad { border: 2px solid #ef4444 !important; background: rgba(239, 68, 68, 0.25) !important; color: #fff !important; }
         /* 已被套餐包含的品項：橘色標示 */
         .chip.cov { background: rgba(234, 88, 12, 0.25); color: #fed7aa; border-color: rgba(234, 88, 12, 0.6); }
         /* 拖曳中被選取的餐點 */
@@ -634,8 +637,8 @@
             heads.forEach((t, i) => { document.getElementById('head' + (i + 1)).textContent = t; });
 
             const tips = {
-                1: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，這一關<b class="text-gray-200">沒有套餐</b>，每一單都要用單點完成`,
-                    '💡 點選右邊某一單，再點<b class="text-gray-200">單點品項</b>放進托盤。注意右上角的點擊次數！'],
+                1: [`💡 ${orders.length}張訂單，共${sumItems(orders)}個餐點。`,
+                    '💡 點選下面品項，放進右側托盤。'],
                 2: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，<b class="text-gray-200">找出經常出現的餐點組合</b>，定義為套餐；<span class="text-red-400 font-bold">紅框</span>＝套餐`,
                     '💡 點餐螢幕只能放<b class="text-gray-200">5個套餐按鈕</b>，在左側訂單選取2~3個餐點來<b class="text-gray-200">建立套餐</b>。'],
                 3: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
@@ -703,6 +706,22 @@
 
         const orderStatus = (i) => statusOf(orders[i], trays[i], modules);
 
+        // 第 1 關：比對托盤裡的單點和訂單，找出已經放對的餐點
+        // gotK：訂單中已經放對的第幾個餐點；okJ：托盤中放對的第幾個項目
+        function matchSingles(order, tray) {
+            const remaining = order.items.map((id, k) => ({ id, k }));
+            const gotK = new Set(), okJ = new Set();
+            tray.forEach((p, j) => {
+                if (p.type !== 'item') return;
+                const idx = remaining.findIndex(r => r.id === p.ref);
+                if (idx === -1) return;
+                gotK.add(remaining[idx].k);
+                okJ.add(j);
+                remaining.splice(idx, 1);
+            });
+            return { gotK, okJ };
+        }
+
         const isSolved = () => orders.every((_, i) => orderStatus(i) === 'done');
 
         // 從 from 的下一單開始，找還沒完成的訂單 (繞一圈)
@@ -742,7 +761,9 @@
                     : 'border-gray-800 bg-gray-900/40';
                 // 同一個套餐的品項放進同一個紅框，只標一個代號
                 const owner = cov[i];
-                const chip = (k) => `<span class="chip ${owner[k] ? 'cov' : 'uncov'}" data-o="${i}" data-k="${k}">${esc(itemName(o.items[k]))}</span>`;
+                // 第 1 關：已經正確放進托盤的餐點亮綠框
+                const got = hasModules() ? new Set() : matchSingles(o, trays[i]).gotK;
+                const chip = (k) => `<span class="chip ${owner[k] ? 'cov' : 'uncov'}${got.has(k) ? ' got' : ''}" data-o="${i}" data-k="${k}">${esc(itemName(o.items[k]))}</span>`;
                 const shown = new Set();
                 let chips = '';
                 o.items.forEach((it, k) => {
@@ -950,8 +971,8 @@
                 wrap.className = 'flex items-stretch bg-gray-900/30 rounded-lg border border-gray-800 p-1 gap-1';
 
                 const title = document.createElement('div');
-                title.className = 'w-9 shrink-0 flex items-center justify-center border-r border-gray-800 pr-1';
-                title.innerHTML = `<div class="grid grid-cols-2 gap-y-0.5 text-xs font-bold text-gray-400 leading-none text-center">${cat.title.split('').map(c => `<span>${c}</span>`).join('')}</div>`;
+                title.className = 'w-10 shrink-0 flex items-center justify-center border-r border-gray-800 pr-1';
+                title.innerHTML = `<div class="grid grid-cols-2 gap-y-0.5 text-[0.9rem] font-bold text-gray-400 leading-none text-center">${cat.title.split('').map(c => `<span>${c}</span>`).join('')}</div>`;
                 wrap.appendChild(title);
 
                 const grid = document.createElement('div');
@@ -1060,9 +1081,11 @@
                 box.className = 'flex-1 min-w-0 flex flex-wrap items-center gap-1.5 py-1';
                 if (trays[i].length === 0) {
                     box.innerHTML = active
-                        ? '<span class="text-gray-400 text-sm">👈 點中間的套餐或單點</span>'
+                        ? `<span class="text-gray-400 text-sm">👈 ${hasModules() ? '點中間的套餐或單點' : '點中間的單點品項'}</span>`
                         : '<span class="text-gray-700 text-sm">—</span>';
                 }
+                // 第 1 關：正確的餐點亮綠框，不需要的餐點亮紅框
+                const okJ = hasModules() ? null : matchSingles(o, trays[i]).okJ;
                 trays[i].forEach((p, j) => {
                     const chip = document.createElement('span');
                     if (p.type === 'module') {
@@ -1073,7 +1096,7 @@
                             (mod ? mod.items.map(it => `<span class="chip cov">${esc(itemName(it))}</span>`).join('') : '');
                     } else {
                         // 單點：灰色實線框，沒有紅框
-                        chip.className = 'tray-chip chip';
+                        chip.className = 'tray-chip chip' + (okJ ? (okJ.has(j) ? ' got' : ' bad') : '');
                         chip.textContent = itemName(p.ref);
                     }
                     if (serving) {
