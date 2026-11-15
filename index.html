@@ -306,7 +306,7 @@
             { id: 4, items: ['m5', 'm9', 'm19', 'm11'] },
             { id: 5, items: ['m2', 'm12', 'm17'] },
             { id: 6, items: ['m8', 'm12', 'm17'] },
-            { id: 7, items: ['m1', 'm18', 'm12'] },
+            { id: 7, items: ['m1', 'm18', 'm12'], fullWithoutModule: true },   // 用不到套餐，單點完成也得 4 分
             { id: 8, items: ['m4', 'm20', 'm16'] },
             { id: 9, items: ['m5', 'm9', 'm19'] },
             { id: 10, items: ['m2', 'm12', 'm10'] },
@@ -1133,7 +1133,7 @@
         // 某一單的得分
         function orderPoints(s, order, tray, mods) {
             if (statusOf(order, tray, mods) !== 'done') return 0;
-            if (s === 1) return tray.some(p => p.type === 'module') ? 4 : 2;
+            if (s === 1) return (order.fullWithoutModule || tray.some(p => p.type === 'module')) ? 4 : 2;
             return 2;
         }
 
