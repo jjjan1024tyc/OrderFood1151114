@@ -291,9 +291,9 @@
         <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
             <div class="text-center">
                 <div class="text-3xl font-black text-[#ffc72c]">第 4 關：概念對照</div>
-                <div class="text-gray-300 text-lg mt-1">你剛剛做的事，在程式設計裡就叫做「<b class="text-white">模組化</b>」</div>
+                <div class="text-gray-300 text-[1.6875rem] mt-1">你剛剛做的事，在程式設計裡就叫做「<b class="text-white">模組化</b>」</div>
             </div>
-            <div class="text-gray-300 text-lg bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-2">
+            <div class="text-gray-300 text-[1.6875rem] leading-snug bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-2">
                 💡 把下方的 <b class="text-sky-300">Scratch 積木圖</b>拖到表格中正確的格子，全部放好後按「送出答案」。<b class="text-[#ffc72c]">答對一題 7 分，全對 20 分</b>，送出後就不能修改。
             </div>
             <div id="quizArea"></div>
@@ -663,9 +663,9 @@
         // 依關卡更新欄位標題與提示
         function renderStageText() {
             const heads = {
-                1: ['1. 今天顧客點餐', '2. 單點品項', '3. 點餐（單點）'],
-                2: ['1. 今天顧客點餐', '2. 定義套餐', '3. 點餐（呼叫套餐＋單點）'],
-                3: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 點餐（呼叫套餐＋單點）']
+                1: ['1. 今日點餐', '2. 單點品項', '3. 點餐（單點）'],
+                2: ['1. 今日點餐', '2. 定義套餐', '3. 點餐（呼叫套餐＋單點）'],
+                3: ['1. 明日點餐', '2. 套餐（已固定）', '3. 點餐（呼叫套餐＋單點）']
             }[stage];
             heads.forEach((t, i) => { document.getElementById('head' + (i + 1)).textContent = t; });
 
