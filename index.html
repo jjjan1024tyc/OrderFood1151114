@@ -587,7 +587,7 @@
         // 依關卡更新欄位標題與提示
         function renderStageText() {
             const heads = {
-                1: ['1. 今天顧客訂單', '2. 定義套餐', '3. 呼叫套餐（點餐）'],
+                1: ['1. 今天顧客點餐', '2. 定義套餐', '3. 呼叫套餐（點餐）'],
                 2: ['1. 明天的新訂單', '2. 套餐（已固定）', '3. 呼叫套餐（點餐）']
             }[stage];
             heads.forEach((t, i) => { document.getElementById('head' + (i + 1)).textContent = t; });
