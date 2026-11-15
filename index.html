@@ -177,7 +177,7 @@
     </header>
 
     <!-- 第 1、2 關：三欄共用同一套格線：標題 / 上方提示 / 主要內容 / 下方資訊 -->
-    <main id="mainGrid" class="flex-1 min-h-0 grid" style="grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); grid-template-rows: auto auto minmax(0, 1fr) auto;">
+    <main id="mainGrid" class="flex-1 min-h-0 grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto;">
 
         <!-- 第 1 排：欄位標題 -->
         <div class="tab-header bg-[#da291c] shadow-lg shadow-red-900/50 text-white z-10 relative">
@@ -632,30 +632,27 @@
 
         // ===================== 判定 =====================
 
-        // 把托盤展開成品項清單
-        function trayItems(i) {
+        // 一單的狀態：empty (空) / partial (還沒完成，但目前都對) / done (完成) / error (有多餘或不對的品項)
+        function statusOf(order, tray, mods) {
+            if (tray.length === 0) return 'empty';
             const list = [];
-            trays[i].forEach(p => {
+            tray.forEach(p => {
                 if (p.type === 'item') list.push(p.ref);
                 else {
-                    const mod = modules.find(m => m.id === p.ref);
+                    const mod = mods.find(m => m.id === p.ref);
                     if (mod) list.push(...mod.items);
                 }
             });
-            return list;
-        }
-
-        // 每一單的狀態：empty (空) / partial (還沒完成，但目前都對) / done (完成) / error (有多餘或不對的品項)
-        function orderStatus(i) {
-            if (trays[i].length === 0) return 'empty';
             const need = {};
-            orders[i].items.forEach(id => { need[id] = (need[id] || 0) + 1; });
-            for (const id of trayItems(i)) {
+            order.items.forEach(id => { need[id] = (need[id] || 0) + 1; });
+            for (const id of list) {
                 if (!need[id]) return 'error';
                 need[id]--;
             }
             return Object.values(need).every(n => n === 0) ? 'done' : 'partial';
         }
+
+        const orderStatus = (i) => statusOf(orders[i], trays[i], modules);
 
         const isSolved = () => orders.every((_, i) => orderStatus(i) === 'done');
 
@@ -1017,12 +1014,14 @@
                 trays[i].forEach((p, j) => {
                     const chip = document.createElement('span');
                     if (p.type === 'module') {
+                        // 套餐：和左欄一樣，紅框包住它的餐點，左上角一個代號
                         const mod = modules.find(m => m.id === p.ref);
-                        chip.className = 'tray-chip relative bg-gradient-to-r from-[#e27a3f] to-[#d35400] text-white font-black text-[1.2rem] whitespace-nowrap px-2.5 rounded border border-[#ffb480]/50 shadow-md leading-[1.75]';
-                        chip.textContent = `📦 ${p.ref}`;
-                        if (mod) chip.title = mod.items.map(itemName).join('＋');
+                        chip.className = 'tray-chip mod-group';
+                        chip.innerHTML = `<span class="mod-badge">${esc(p.ref)}</span>` +
+                            (mod ? mod.items.map(it => `<span class="chip cov">${esc(itemName(it))}</span>`).join('') : '');
                     } else {
-                        chip.className = 'tray-chip relative bg-gray-800 border border-gray-500 text-white text-[1.2rem] whitespace-nowrap px-2 rounded shadow-md leading-[1.75]';
+                        // 單點：灰色實線框，沒有紅框
+                        chip.className = 'tray-chip chip';
                         chip.textContent = itemName(p.ref);
                     }
                     if (serving) {
@@ -1092,11 +1091,7 @@
                 document.getElementById('errorBox').innerText = `❌ 第 ${errorOrders.join('、')} 單有錯，請修正`;
             } else if (doneCount === total) {
                 state = 'solved';
-                if (isEditable() && (best[stage] === null || clicks < best[stage])) {
-                    best[stage] = clicks;
-                    stampNow();
-                    syncScores();
-                }
+                if (isEditable()) stampNow();
                 const big = (n) => `<span class="text-2xl text-red-600 mx-0.5 leading-none">${n}</span>`;
                 document.getElementById('successBanner').innerHTML = clicks <= STAGES[stage].perfect
                     ? `🏆 完美！${big(clicks)}次`
@@ -1110,48 +1105,75 @@
             document.getElementById('errorBox').classList.toggle('hidden', state !== 'error');
             document.getElementById('successBanner').classList.toggle('hidden', state !== 'solved');
 
+            // 分數變高時上傳到老師的試算表
+            const pts = stagePoints(stage);
+            if (isEditable() && pts > synced[stage]) {
+                synced[stage] = pts;
+                syncScores();
+            }
+
             renderScoreboard();
         }
 
-        // 每關分數：第 1、2 關未完成 0 分、完成 15 分、完美 20 分；第 3 關答對一題 7 分、全對 20 分
+        // ---------- 計分 (即時) ----------
+        // 第 1 關：每完成一單，單點完成 2 分、有用套餐完成 4 分 (滿分 60)
+        // 第 2 關：每完成一單 2 分 (滿分 20)
+        // 第 3 關：答對 1 題 7 分、2 題 14 分、全對 20 分
+        const STAGE_MAX = { 1: 60, 2: 20, 3: 20 };
+        const synced = { 1: 0, 2: 0 };   // 已上傳的最高分
+
+        // 取得某一關的訂單、托盤、套餐 (目前顯示的關卡用畫面上的資料)
+        function stageView(s) {
+            if (s === 2 && unlocked < 2) return null;
+            if (s === stage) return { orders, trays, modules };
+            const d = stageData[s];
+            return d ? { orders: STAGES[s].orders, trays: d.trays, modules: d.modules } : null;
+        }
+
+        // 某一單的得分
+        function orderPoints(s, order, tray, mods) {
+            if (statusOf(order, tray, mods) !== 'done') return 0;
+            if (s === 1) return tray.some(p => p.type === 'module') ? 4 : 2;
+            return 2;
+        }
+
         function stagePoints(s) {
-            if (best[s] === null) return 0;
-            if (s === 3) return QUIZ_SCORES[best[s]];
-            return best[s] <= STAGES[s].perfect ? 20 : 15;
+            if (s === 3) return best[3] === null ? 0 : QUIZ_SCORES[best[3]];
+            const v = stageView(s);
+            if (!v) return 0;
+            return v.orders.reduce((sum, o, i) => sum + orderPoints(s, o, v.trays[i], v.modules), 0);
+        }
+
+        function stageDoneCount(s) {
+            const v = stageView(s);
+            if (!v) return 0;
+            return v.orders.filter((o, i) => statusOf(o, v.trays[i], v.modules) === 'done').length;
         }
 
         function renderScoreboard() {
             let total = 0;
             let html = '<span class="text-gray-400 text-sm font-bold shrink-0 mr-1">🏆 關卡</span>';
             [1, 2, 3].forEach(s => {
-                const b = best[s];
                 const pts = stagePoints(s);
+                const max = STAGE_MAX[s];
                 total += pts;
                 const ring = s === stage ? ' ring-2 ring-orange-500 ring-offset-1 ring-offset-black' : '';
-                const perfect = b !== null && (s === 3 ? b === QUIZ_ROWS.length : b <= STAGES[s].perfect);
-                let cls, status, pointsTag = '';
+                let cls, status;
                 if (s === 2 && unlocked < 2) {
                     cls = 'bg-gray-900 border-gray-700 text-gray-500 hover:bg-gray-800';
                     status = '🔒 先完成第 1 關';
-                } else if (b !== null) {
-                    const value = s === 3 ? `答對 <b>${b}</b>/${QUIZ_ROWS.length}` : `<b>${b}</b> 次`;
-                    if (perfect) {
-                        cls = 'bg-yellow-500 border-yellow-300 text-black hover:bg-yellow-400';
-                        status = s === 3 ? `全對 <b>${b}</b>/${QUIZ_ROWS.length}` : '完美 ' + value;
-                        pointsTag = `<span class="text-red-600 ml-1">${pts}分</span>`;
-                    } else {
-                        cls = 'bg-yellow-500/15 border-yellow-500 text-yellow-300 hover:bg-yellow-500/25';
-                        status = (s === 3 ? '' : '最佳 ') + value;
-                        pointsTag = `<span class="text-red-500 ml-1">${pts}分</span>`;
-                    }
                 } else {
-                    cls = 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-700';
-                    status = s === 3 ? '未作答' : '進行中';
+                    if (s === 3) status = best[3] === null ? '未作答' : `答對 ${best[3]}/${QUIZ_ROWS.length} 題`;
+                    else status = `完成 ${stageDoneCount(s)}/${STAGES[s].orders.length} 單`;
+                    cls = pts >= max ? 'bg-yellow-500 border-yellow-300 text-black hover:bg-yellow-400'
+                        : pts > 0 ? 'bg-yellow-500/15 border-yellow-500 text-yellow-300 hover:bg-yellow-500/25'
+                        : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-700';
                 }
-                html += `<button onclick="viewStage(${s})" class="border rounded-lg px-3 py-0.5 text-sm leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}${pointsTag}</span><span class="block text-xs">${status}</span></button>`;
+                const ptsColor = pts >= max ? 'text-red-600' : 'text-red-500';
+                html += `<button onclick="viewStage(${s})" class="border rounded-lg px-3 py-0.5 text-sm leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}<span class="${ptsColor} ml-1">${pts}/${max}分</span></span><span class="block text-xs">${status}</span></button>`;
             });
             html += `<span class="shrink-0 ml-1 text-red-500 font-black text-lg">總分 ${total} 分</span>`;
-            html += `<span class="ml-auto text-sm text-gray-400 shrink-0">點擊越少，分數越高${lastSolvedStamp ? `<span class="text-xs text-gray-500 ml-2">${lastSolvedStamp}</span>` : ''}</span>`;
+            html += `<span class="ml-auto text-sm text-gray-400 shrink-0">第 1 關：單點完成 2 分、用套餐完成 4 分${lastSolvedStamp ? `<span class="text-xs text-gray-500 ml-2">${lastSolvedStamp}</span>` : ''}</span>`;
             document.getElementById('scoreboard').innerHTML = html;
         }
 
@@ -1322,7 +1344,7 @@
                     setSyncStatus('⚠️ 上傳失敗，下次完成時會再試', 'text-red-400');
                     showMessage('成績上傳失敗：' + (err && err.message ? err.message : '請檢查網路'));
                 })
-                .saveScores({ s1: best[1], s2: best[2], s3: best[3] });
+                .saveScores({ s1: stagePoints(1), s2: stagePoints(2), s3: best[3] });
         }
     </script>
 </body>
