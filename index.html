@@ -172,13 +172,13 @@
 
     <!-- 標題列：標題 + 三關成績 + 帳號 + 復原 -->
     <header class="bg-[#111] px-3 py-2 border-b border-gray-800 flex items-center gap-3 z-10 shrink-0 shadow-md">
-        <h1 class="text-[1.875rem] leading-none font-black tracking-wider text-[#ffc72c] shrink-0">點餐大師</h1>
+        <h1 class="text-[2.8rem] leading-none font-black tracking-wider text-[#ffc72c] shrink-0">點餐大師</h1>
         <nav id="scoreboard" class="flex-1 min-w-0 flex flex-wrap items-center gap-2"></nav>
         <div id="accountInfo" class="hidden text-xs text-gray-400 text-right leading-tight shrink-0">
             <div id="accountEmail"></div>
             <div id="syncStatus"></div>
         </div>
-        <button id="undoBtn" onclick="undo()" title="復原上一步 (Ctrl+Z)" class="shrink-0 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800 text-white text-sm font-bold py-1.5 px-4 rounded border border-gray-600 transition-colors">↶ 復原</button>
+        <button id="undoBtn" onclick="undo()" title="復原上一步 (Ctrl+Z)" class="shrink-0 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800 text-white text-[1.3125rem] font-bold py-1.5 px-4 rounded border border-gray-600 transition-colors">↶ 復原</button>
     </header>
 
     <!-- 第 1、2 關：三欄共用同一套格線：標題 / 上方提示 / 主要內容 / 下方資訊 -->
@@ -618,7 +618,7 @@
                 }
                 if (next === 2) {
                     const c = counts[1];
-                    showInfo('第 2 關：用套餐點餐', `同樣的 <b class="text-white">15 張訂單</b>，這次可以<b class="text-[#ffc72c]">建立套餐</b>了！<br>點餐螢幕只能放 5 個套餐按鈕，找出經常一起出現的餐點組合。<br><br>第 1 關你總共點了 <b class="text-white">${c.ok + c.err}</b> 次，<br>這次能少點幾次？`);
+                    showInfo('第 2 關：建立套餐、呼叫套餐', `同樣的 <b class="text-white">15 張訂單</b>，這次請先<b class="text-[#ffc72c]">建立套餐</b>！<br>點餐螢幕只能放 5 個套餐按鈕，需找出經常出現的餐點組合，建立為套餐。<br><br>第 1 關你總共點了 <b class="text-white">${c.ok + c.err}</b> 次，<br>這次能少點幾次？`);
                 } else if (next === 3) {
                     showInfo('第 3 關：明天的新訂單', `明天來了 <b class="text-white">10 張新訂單</b>！<br>螢幕上的 5 個套餐按鈕<b class="text-[#ffc72c]">已經固定，不能修改</b>。<br><br>看看你設計的套餐，明天還好不好用？`);
                 } else if (!quiz.submitted) {
@@ -1275,14 +1275,20 @@
 
         function renderScoreboard() {
             let total = 0;
-            let html = '<span class="text-gray-400 text-sm font-bold shrink-0 mr-1">🏆 關卡</span>';
+            // 目前這一關已經完成、還沒進入下一關：下一關的按鈕閃爍綠色，提示學生點擊
+            const readyNext = (unlocked < QUIZ_STAGE && isStageSolved(unlocked)) ? unlocked + 1 : null;
+            let html = '<span class="text-gray-400 text-[1.3125rem] font-bold shrink-0 mr-1">🏆 關卡</span>';
             [1, 2, 3, 4].forEach(s => {
                 const pts = stagePoints(s);
                 const max = STAGE_MAX[s];
                 total += pts;
                 const ring = s === stage ? ' ring-2 ring-orange-500 ring-offset-1 ring-offset-black' : '';
-                let cls, status;
-                if (s < QUIZ_STAGE && unlocked < s) {
+                let cls, status, onclick = `viewStage(${s})`;
+                if (s === readyNext) {
+                    cls = 'bg-green-600 border-green-300 text-white hover:bg-green-500 animate-pulse shadow-[0_0_16px_rgba(34,197,94,0.9)]';
+                    status = '▶ 點我進入';
+                    onclick = 'goNext()';
+                } else if (s < QUIZ_STAGE && unlocked < s) {
                     cls = 'bg-gray-900 border-gray-700 text-gray-500 hover:bg-gray-800';
                     status = `🔒 先完成第 ${s - 1} 關`;
                 } else {
@@ -1292,12 +1298,24 @@
                         : pts > 0 ? 'bg-yellow-500/15 border-yellow-500 text-yellow-300 hover:bg-yellow-500/25'
                         : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-700';
                 }
-                const ptsColor = pts >= max ? 'text-red-600' : 'text-red-500';
-                html += `<button onclick="viewStage(${s})" class="border rounded-lg px-3 py-0.5 text-sm leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}<span class="${ptsColor} ml-1">${pts}/${max}分</span></span><span class="block text-xs">${status}</span></button>`;
+                const ptsColor = s === readyNext ? 'text-yellow-200' : pts >= max ? 'text-red-600' : 'text-red-500';
+                html += `<button onclick="${onclick}" class="border-2 rounded-lg px-4 py-1 text-[1.3125rem] leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}<span class="${ptsColor} ml-1">${pts}/${max}分</span></span><span class="block text-[1.125rem]">${status}</span></button>`;
             });
-            html += `<span class="shrink-0 ml-1 text-red-500 font-black text-lg">總分 ${total} 分</span>`;
-            html += `<span class="ml-auto text-xs text-gray-500 shrink-0">${lastSolvedStamp}</span>`;
+            html += `<span class="shrink-0 ml-1 text-red-500 font-black text-[1.6875rem]">總分 ${total} 分</span>`;
+            html += `<span class="ml-auto text-[1.125rem] text-gray-500 shrink-0">${lastSolvedStamp}</span>`;
             document.getElementById('scoreboard').innerHTML = html;
+        }
+
+        // 某一關是否已經全部完成
+        function isStageSolved(s) {
+            const v = stageView(s);
+            return !!v && v.orders.every((o, i) => statusOf(o, v.trays[i], v.modules) === 'done');
+        }
+
+        // 點閃爍的下一關按鈕：回到目前這一關，再進入下一關
+        function goNext() {
+            if (stage !== unlocked) viewStage(unlocked);
+            advance();
         }
 
         // ===================== 第 3 關：概念對照 (拖曳作答) =====================
