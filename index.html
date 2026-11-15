@@ -178,7 +178,6 @@
             <div id="accountEmail"></div>
             <div id="syncStatus"></div>
         </div>
-        <button id="undoBtn" onclick="undo()" title="復原上一步 (Ctrl+Z)" class="shrink-0 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800 text-white text-[1.3125rem] font-bold py-1.5 px-4 rounded border border-gray-600 transition-colors">↶ 復原</button>
     </header>
 
     <!-- 第 1、2 關：三欄共用同一套格線：標題 / 上方提示 / 主要內容 / 下方資訊 -->
@@ -507,7 +506,7 @@
         }
 
         function updateUndoBtn() {
-            document.getElementById('undoBtn').disabled = stage === QUIZ_STAGE || isLockedView() || history.length === 0;
+            // 復原按鈕已移除 (仍可用 Ctrl+Z 復原)
         }
 
         // ===================== 初始化 =====================
@@ -955,7 +954,7 @@
                 modules = modules.filter(m => m.id !== id);
                 trays = trays.map(t => t.filter(p => !(p.type === 'module' && p.ref === id)));
                 updateAll();
-                showMessage(`已刪除套餐 ${id}，按「↶ 復原」可以救回來`, 'info');
+                showMessage(`已刪除套餐 ${id}`, 'info');
             });
         }
 
@@ -1089,7 +1088,7 @@
             trays[i] = [];
             activeOrder = i;
             updateAll();
-            showMessage(`已清空第 ${orders[i].id} 單，按「↶ 復原」可以救回來`, 'info');
+            showMessage(`已清空第 ${orders[i].id} 單`, 'info');
         }
 
         function scrollToActive() {
