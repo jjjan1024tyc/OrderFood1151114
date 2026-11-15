@@ -196,13 +196,27 @@
 
         <!-- 第 2 排：上方提示 (依關卡改變) -->
         <div class="bg-[#0a0a0a] border-r border-gray-800 px-4 pt-3 flex flex-col">
-            <div id="tip1" class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-sm text-gray-400 font-medium"></div>
+            <div id="tip1" class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-[1.05rem] leading-relaxed text-gray-400 font-medium"></div>
         </div>
         <div class="bg-[#111] border-r border-gray-800 px-4 pt-3 flex flex-col">
-            <div id="tip2" class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-sm text-gray-400 font-medium"></div>
+            <div id="tip2" class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-[1.05rem] leading-relaxed text-gray-400 font-medium"></div>
         </div>
+        <!-- 右上：完成進度、點擊次數、進入下一關 -->
         <div class="bg-gray-950 px-4 pt-3 flex flex-col">
-            <div id="tip3" class="flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-sm text-gray-400 font-medium"></div>
+            <div class="relative flex-1 bg-[#1a1a1a] px-3 py-2 rounded border border-gray-800 text-sm text-gray-400 flex flex-col justify-center gap-1">
+                <div id="lockNote" class="hidden text-center font-bold text-gray-300">🔒 這一關已經完成並鎖定，只能查看</div>
+                <div id="progressLine" class="min-w-0 flex items-center gap-2 h-7 whitespace-nowrap">
+                    <span class="shrink-0">完成</span>
+                    <div class="flex-1 h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                        <div id="doneBar" class="h-full bg-sky-500 transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <span id="doneText" class="text-white font-bold w-14 text-right">0/15</span>
+                </div>
+                <div id="errorBox" class="hidden min-w-0 rounded-lg px-2 py-0.5 text-center font-bold bg-red-900 text-white border border-red-700"></div>
+                <div id="successBanner" class="hidden min-w-0 rounded-lg px-2 py-0.5 text-lg text-center font-black bg-[#e8c338] text-black border border-yellow-500 shadow-[0_0_12px_rgba(232,195,56,0.5)] whitespace-nowrap overflow-hidden text-ellipsis"></div>
+                <span class="text-center whitespace-nowrap">點擊 <b id="clickCount" class="text-yellow-400 text-xl">0</b> 次</span>
+                <button id="nextBtn" onclick="advance()" class="hidden bg-[#759e66] hover:bg-[#5a7d4e] text-white font-black py-1 rounded-full shadow-[0_0_12px_rgba(117,158,102,0.6)] animate-pulse"></button>
+            </div>
         </div>
 
         <!-- 第 3 排：主要內容 (左右兩欄同步捲動) -->
@@ -231,33 +245,18 @@
             </div>
         </div>
 
-        <!-- 第 4 排：各欄下方資訊 -->
-        <div id="info1" class="bg-black border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center gap-3 text-sm text-gray-400 text-center"></div>
-        <div class="bg-[#0a0a0a] border-t border-r border-gray-800"></div>
-        <div class="relative bg-black border-t border-gray-800 px-4 py-2 flex flex-col justify-center text-sm text-gray-400">
-            <!-- 過程中顯示完成進度；有錯顯示「錯誤請修正」；全部完成換成成功橫幅 -->
-            <div class="flex flex-col gap-1 pb-1.5">
-                <div id="progressLine" class="min-w-0 flex items-center gap-2 h-7 whitespace-nowrap">
-                    <span class="shrink-0">完成</span>
-                    <div class="flex-1 h-2.5 bg-gray-800 rounded-full overflow-hidden">
-                        <div id="doneBar" class="h-full bg-sky-500 transition-all duration-300" style="width:0%"></div>
-                    </div>
-                    <span id="doneText" class="text-white font-bold w-14 text-right">0/15</span>
-                </div>
-                <div id="errorBox" class="hidden min-w-0 rounded-lg px-2 py-0.5 text-center font-bold bg-red-900 text-white border border-red-700"></div>
-                <div id="successBanner" class="hidden min-w-0 rounded-lg px-2 py-0.5 text-lg text-center font-black bg-[#e8c338] text-black border border-yellow-500 shadow-[0_0_12px_rgba(232,195,56,0.5)] whitespace-nowrap overflow-hidden text-ellipsis"></div>
-                <span class="text-center whitespace-nowrap">點擊 <b id="clickCount" class="text-yellow-400 text-xl">0</b> 次</span>
-                <button id="nextBtn" onclick="advance()" class="hidden bg-[#759e66] hover:bg-[#5a7d4e] text-white font-black py-1 rounded-full shadow-[0_0_12px_rgba(117,158,102,0.6)] animate-pulse"></button>
-            </div>
-            <div class="absolute bottom-0.5 right-1.5 text-[9px] text-gray-700 leading-none pointer-events-none">桃園市建國國中詹智傑老師設計(2026)</div>
-        </div>
+        <!-- 第 4 排：下方資訊 (第 2 關才顯示) -->
+        <div id="info1" class="row4 bg-black border-t border-r border-gray-800 px-4 py-2 flex items-center justify-center gap-3 text-sm text-gray-400 text-center"></div>
+        <div class="row4 bg-[#0a0a0a] border-t border-r border-gray-800"></div>
+        <div class="row4 bg-black border-t border-gray-800"></div>
     </main>
+    <div class="fixed bottom-0.5 right-1.5 text-[9px] text-gray-700 leading-none pointer-events-none z-20">桃園市建國國中詹智傑老師設計(2026)</div>
 
     <!-- 第 2 關還沒解鎖時：內容是空的，只顯示提醒 -->
     <section id="lockPanel" class="hidden flex-1 min-h-0 flex-col items-center justify-center gap-4 bg-[#0a0a0a] text-center px-4">
         <div class="text-7xl">🔒</div>
         <div class="text-3xl font-black text-[#ffc72c]">請先完成第 1 關</div>
-        <div class="text-gray-300 text-xl leading-relaxed">完成第 1 關的 15 單後，<br>按右下角的「<b class="text-white">進入第 2 關 ▶</b>」才能開始第 2 關。</div>
+        <div class="text-gray-300 text-xl leading-relaxed">完成第 1 關的 15 單後，<br>按右上角的「<b class="text-white">進入第 2 關 ▶</b>」才能開始第 2 關。</div>
         <button onclick="viewStage(1)" class="mt-2 bg-[#759e66] hover:bg-[#5a7d4e] text-white text-xl font-black py-2 px-8 rounded-full shadow-lg">◀ 回到第 1 關</button>
     </section>
 
@@ -592,14 +591,15 @@
 
             const tips = {
                 1: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，<b class="text-gray-200">找出經常出現的餐點組合</b>，定義為套餐；<span class="text-red-400 font-bold">紅框</span>＝套餐`,
-                    '💡 點餐螢幕只能放<b class="text-gray-200">5個套餐按鈕</b>，在左側訂單選取2~3個餐點來<b class="text-gray-200">建立套餐</b>。',
-                    '💡 點選某一單，再點<b class="text-gray-200">套餐</b>或<b class="text-gray-200">單點</b>'],
+                    '💡 點餐螢幕只能放<b class="text-gray-200">5個套餐按鈕</b>，在左側訂單選取2~3個餐點來<b class="text-gray-200">建立套餐</b>。'],
                 2: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
-                    '🔒 螢幕上的套餐按鈕<b class="text-gray-200">已經固定</b>，不能再修改',
-                    '💡 點選某一單，再點<b class="text-gray-200">套餐</b>或<b class="text-gray-200">單點</b>']
+                    '🔒 螢幕上的套餐按鈕<b class="text-gray-200">已經固定</b>，不能再修改']
             }[stage];
-            if (!isEditable()) tips[2] = '🔒 這一關已經完成並鎖定，只能查看';
             tips.forEach((t, i) => { document.getElementById('tip' + (i + 1)).innerHTML = t; });
+            // 已鎖定的關卡：右上顯示鎖定提示
+            document.getElementById('lockNote').classList.toggle('hidden', isEditable());
+            // 下方資訊列只在第 2 關顯示
+            document.querySelectorAll('.row4').forEach(el => el.classList.toggle('hidden', stage === 1));
         }
 
         // ===================== 左右兩欄同步捲動、列高對齊 =====================
