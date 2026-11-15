@@ -268,7 +268,10 @@
         <div class="text-7xl">🔒</div>
         <div id="lockTitle" class="text-3xl font-black text-[#ffc72c]"></div>
         <div id="lockText" class="text-gray-300 text-xl leading-relaxed"></div>
-        <button id="lockBack" class="mt-2 bg-[#759e66] hover:bg-[#5a7d4e] text-white text-xl font-black py-2 px-8 rounded-full shadow-lg"></button>
+        <div class="mt-2 flex flex-wrap justify-center gap-4">
+            <button id="lockBack" class="bg-[#759e66] hover:bg-[#5a7d4e] text-white text-xl font-black py-2 px-8 rounded-full shadow-lg"></button>
+            <button id="lockSkip" class="bg-sky-700 hover:bg-sky-600 text-white text-xl font-black py-2 px-8 rounded-full shadow-lg"></button>
+        </div>
     </section>
 
     <!-- 第 2 關完成時：和第 1 關比較點擊次數 -->
@@ -537,10 +540,13 @@
             if (isLock) {
                 const prev = stage - 1;
                 document.getElementById('lockTitle').textContent = `請先完成第 ${prev} 關`;
-                document.getElementById('lockText').innerHTML = `完成第 ${prev} 關的 ${STAGES[prev].orders.length} 單後，<br>按右上角的「<b class="text-white">進入第 ${stage} 關 ▶</b>」才能開始第 ${stage} 關。`;
+                document.getElementById('lockText').innerHTML = `完成第 ${prev} 關的 ${STAGES[prev].orders.length} 單後，才能開始第 ${stage} 關。`;
                 const back = document.getElementById('lockBack');
                 back.textContent = `◀ 回到第 ${unlocked} 關`;
                 back.onclick = () => viewStage(unlocked);
+                const skip = document.getElementById('lockSkip');
+                skip.textContent = `先跳到第 ${stage} 關 ▶`;
+                skip.onclick = () => skipTo(stage);
                 renderScoreboard();
                 updateUndoBtn();
                 return;
@@ -602,20 +608,39 @@
             }[next];
             askConfirm(text, () => {
                 saveStage();
-                unlocked = next;
-                if (next === 2) {
-                    // 第 2 關：同樣的 15 單，這次可以建立套餐
-                    stageData[2] = { modules: [], trays: TODAY_ORDERS.map(() => []), activeOrder: 0, history: [] };
-                } else if (next === 3) {
-                    // 第 3 關：新的 10 單，沿用第 2 關的套餐 (不能修改)
-                    stageData[3] = { modules: stageData[2].modules, trays: TOMORROW_ORDERS.map(() => []), activeOrder: 0, history: [] };
-                }
-                loadStage(next);
-                updateAll();
-                if (next < QUIZ_STAGE) {
-                    document.getElementById('ordersScroll').scrollTop = 0;
-                    document.getElementById('trayScroll').scrollTop = 0;
-                }
+                enterStage(next);
+            }, `進入第 ${next} 關`, 'bg-[#759e66] hover:bg-[#5a7d4e]');
+        }
+
+        // 還沒完成前一關，就先跳到第 target 關 (中間的關卡會鎖定)
+        function skipTo(target) {
+            if (target <= unlocked) return;
+            const from = unlocked;
+            const text = `第 ${from} 關還沒完成。\n\n先跳到第 ${target} 關後，第 ${from} 關${target - from > 1 ? `到第 ${target - 1} 關` : ''}就不能再修改了。\n\n確定要先跳到第 ${target} 關嗎？`;
+            askConfirm(text, () => {
+                if (stage === from) saveStage();
+                for (let n = from + 1; n <= target; n++) enterStage(n, n === target);
+            }, `先跳到第 ${target} 關`, 'bg-sky-700 hover:bg-sky-600');
+        }
+
+        // 解鎖並進入第 next 關 (showIt=false 時只解鎖、不切換畫面)
+        function enterStage(next, showIt = true) {
+            unlocked = next;
+            if (next === 2) {
+                // 第 2 關：同樣的 15 單，這次可以建立套餐
+                stageData[2] = { modules: [], trays: TODAY_ORDERS.map(() => []), activeOrder: 0, history: [] };
+            } else if (next === 3) {
+                // 第 3 關：新的 10 單，沿用第 2 關的套餐 (不能修改)
+                stageData[3] = { modules: stageData[2].modules, trays: TOMORROW_ORDERS.map(() => []), activeOrder: 0, history: [] };
+            }
+            if (!showIt) return;
+            loadStage(next);
+            updateAll();
+            if (next < QUIZ_STAGE) {
+                document.getElementById('ordersScroll').scrollTop = 0;
+                document.getElementById('trayScroll').scrollTop = 0;
+            }
+            {
                 if (next === 2) {
                     const c = counts[1];
                     showInfo('第 2 關：建立套餐、呼叫套餐', `同樣的 <b class="text-white">15 張訂單</b>，這次請先<b class="text-[#ffc72c]">建立套餐</b>！<br>點餐螢幕只能放 5 個套餐按鈕，需找出經常出現的餐點組合，建立為套餐。<br><br>第 1 關你總共點了 <b class="text-white">${c.ok + c.err}</b> 次，<br>這次能少點幾次？`);
@@ -624,7 +649,7 @@
                 } else if (!quiz.submitted) {
                     showInfo('第 4 關：概念對照', `你剛剛設計套餐、用套餐點餐，其實就是程式設計裡的「<b class="text-white">模組化</b>」！<br><br>請把 <b class="text-sky-300">Scratch 積木圖</b>拖到表格中正確的位置，<br>答對一題 7 分，全對 20 分。`);
                 }
-            }, `進入第 ${next} 關`, 'bg-[#759e66] hover:bg-[#5a7d4e]');
+            }
         }
 
         // 依關卡更新欄位標題與提示
