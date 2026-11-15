@@ -333,34 +333,34 @@
 
         // 第 1 關：今天常見的 15 張訂單
         const TODAY_ORDERS = [
-            { id: 1, items: ['m8', 'm12', 'm17', 'm14'] },
+            { id: 1, items: ['m14', 'm8', 'm12', 'm17'] },
             { id: 2, items: ['m1', 'm15', 'm18'] },
             { id: 3, items: ['m4', 'm20'] },
             { id: 4, items: ['m5', 'm9', 'm19', 'm11'] },
-            { id: 5, items: ['m2', 'm12', 'm17'] },
+            { id: 5, items: ['m17', 'm2', 'm12'] },
             { id: 6, items: ['m8', 'm12', 'm17'] },
-            { id: 7, items: ['m1', 'm18', 'm12'], fullWithoutModule: true },   // 用不到套餐，單點完成也得 4 分
+            { id: 7, items: ['m1', 'm18', 'm12'], fullWithoutModule: true },   // 用不到套餐，第 2 關單點完成也給滿分 3 分
             { id: 8, items: ['m4', 'm20', 'm16'] },
             { id: 9, items: ['m5', 'm9', 'm19'] },
-            { id: 10, items: ['m2', 'm12', 'm10'] },
+            { id: 10, items: ['m10', 'm2', 'm12'] },
             { id: 11, items: ['m1', 'm15', 'm18', 'm13'] },
-            { id: 12, items: ['m4', 'm20', 'm11'] },
+            { id: 12, items: ['m11', 'm4', 'm20'] },
             { id: 13, items: ['m5', 'm9', 'm19', 'm13'] },
-            { id: 14, items: ['m8', 'm12', 'm17', 'm16'] },
+            { id: 14, items: ['m16', 'm8', 'm12', 'm17'] },
             { id: 15, items: ['m2', 'm12', 'm9', 'm19'] }
         ];
-        // 第 2 關：明天的 10 張新訂單 (檢驗套餐是否通用)
+        // 第 3 關：明天的 10 張新訂單 (檢驗套餐是否通用)
         const TOMORROW_ORDERS = [
-            { id: 1, items: ['m8', 'm12', 'm17', 'm16'] },
+            { id: 1, items: ['m16', 'm8', 'm12', 'm17'] },
             { id: 2, items: ['m1', 'm15', 'm18', 'm14'] },
-            { id: 3, items: ['m4', 'm20', 'm9'] },
+            { id: 3, items: ['m9', 'm4', 'm20'] },
             { id: 4, items: ['m5', 'm9', 'm19'] },
             { id: 5, items: ['m2', 'm12', 'm18'] },
-            { id: 6, items: ['m8', 'm12', 'm17', 'm13'] },
+            { id: 6, items: ['m13', 'm8', 'm12', 'm17'] },
             { id: 7, items: ['m6', 'm19'] },
             { id: 8, items: ['m4', 'm20', 'm12'] },
-            { id: 9, items: ['m5', 'm9', 'm19', 'm10'] },
-            { id: 10, items: ['m4', 'm20', 'm2', 'm12'] }
+            { id: 9, items: ['m10', 'm5', 'm9', 'm19'] },
+            { id: 10, items: ['m2', 'm12', 'm4', 'm20'] }
         ];
 
         const sumItems = (orders) => orders.reduce((s, o) => s + o.items.length, 0);
@@ -1575,7 +1575,7 @@
                     showMessage('成績上傳失敗：' + (err && err.message ? err.message : '請檢查網路'));
                 })
                 .saveScores({ s1: stagePoints(1), s2: stagePoints(2), s3: stagePoints(3), s4: best[4],
-                              c1: counts[1].ok + counts[1].err, c2: counts[2].ok + counts[2].err });
+                              c1: counts[1].ok + counts[1].err, c2: counts[2].ok + counts[2].err, c3: counts[3].ok + counts[3].err });
         }
     </script>
 </body>
