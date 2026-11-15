@@ -240,13 +240,13 @@
             <div class="flex-1 min-h-0 overflow-y-auto hide-scrollbar flex flex-col gap-2 pr-1">
                 <!-- 點餐機螢幕：只放得下 5 個套餐按鈕 -->
                 <div id="moduleScreen" class="bg-black border-4 border-gray-600 rounded-xl p-2 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
-                    <div class="text-sm font-bold text-[#ffb480] flex items-center justify-between px-1 pb-1.5">
-                        <span>套餐按鈕</span>
-                        <span id="moduleCountText" class="text-xs text-gray-400 font-normal"></span>
+                    <div class="text-[1.3125rem] font-bold text-[#ffb480] flex items-center justify-between px-1 pb-1.5">
+                        <span>📦 套餐按鈕<span class="text-gray-400 font-normal ml-1">(最多5個)</span></span>
+                        <span id="moduleCountText" class="text-[1.125rem] text-gray-400 font-normal"></span>
                     </div>
                     <div id="moduleList" class="flex flex-col gap-2"></div>
                 </div>
-                <div id="menuTitle" class="text-sm font-bold text-gray-300 mt-1">🍽️ 單點品項</div>
+                <div id="menuTitle" class="text-[1.3125rem] font-bold text-gray-300 mt-1">🍽️ 單點品項</div>
                 <div id="menuContainer" class="flex flex-col gap-1.5 pb-1"></div>
             </div>
         </div>
@@ -673,7 +673,7 @@
                 1: [`💡 ${orders.length}張訂單，共${sumItems(orders)}個餐點。`,
                     '💡 點選下面品項，放進右側托盤。'],
                 2: [`💡 ${orders.length}張訂單，${sumItems(orders)}個餐點，<b class="text-gray-200">找出經常出現的餐點組合</b>，定義為套餐；<span class="text-red-400 font-bold">紅框</span>＝套餐`,
-                    '💡 點餐螢幕只能放5個套餐按鈕，<b class="text-gray-200">在左側訂單選取2~3個餐點來建立套餐</b>。'],
+                    '💡 <b class="text-gray-200">在左側訂單選取2~3個餐點來建立套餐</b>。'],
                 3: ['💡 明天的新訂單：你的套餐還用得上嗎？<span class="text-red-400 font-bold">紅框</span>＝套餐用得上的地方',
                     '🔒 螢幕上的套餐按鈕<b class="text-gray-200">已經固定</b>，不能再修改']
             }[stage];
