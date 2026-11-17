@@ -755,20 +755,25 @@
 
         const orderStatus = (i) => statusOf(orders[i], trays[i], modules);
 
-        // 第 1 關：比對托盤裡的單點和訂單，找出已經放對的餐點
-        // gotK：訂單中已經放對的第幾個餐點；okJ：托盤中放對的第幾個項目
-        function matchSingles(order, tray) {
+        // 比對托盤 (單點和套餐裡的每個餐點) 和訂單，找出已經放對的餐點
+        // gotK：訂單中已經放對的第幾個餐點
+        // ok[j]：托盤第 j 項是否放對 (單點是 true/false；套餐是每個餐點各自的 true/false 陣列)
+        function matchTray(order, tray, mods) {
             const remaining = order.items.map((id, k) => ({ id, k }));
-            const gotK = new Set(), okJ = new Set();
-            tray.forEach((p, j) => {
-                if (p.type !== 'item') return;
-                const idx = remaining.findIndex(r => r.id === p.ref);
-                if (idx === -1) return;
+            const gotK = new Set();
+            const take = (id) => {
+                const idx = remaining.findIndex(r => r.id === id);
+                if (idx === -1) return false;
                 gotK.add(remaining[idx].k);
-                okJ.add(j);
                 remaining.splice(idx, 1);
+                return true;
+            };
+            const ok = tray.map(p => {
+                if (p.type === 'item') return take(p.ref);
+                const mod = mods.find(m => m.id === p.ref);
+                return mod ? mod.items.map(take) : [];
             });
-            return { gotK, okJ };
+            return { gotK, ok };
         }
 
         const isSolved = () => orders.every((_, i) => orderStatus(i) === 'done');
@@ -811,7 +816,8 @@
                 // 同一個套餐的品項放進同一個紅框，只標一個代號
                 const owner = cov[i];
                 // 第 1 關：已經正確放進托盤的餐點亮綠框
-                const got = hasModules() ? new Set() : matchSingles(o, trays[i]).gotK;
+                // 已經正確放進托盤的餐點亮綠框 (套餐紅框照常保留)
+                const got = matchTray(o, trays[i], modules).gotK;
                 const chip = (k) => `<span class="chip ${owner[k] ? 'cov' : 'uncov'}${got.has(k) ? ' got' : ''}" data-o="${i}" data-k="${k}">${esc(itemName(o.items[k]))}</span>`;
                 const shown = new Set();
                 let chips = '';
@@ -1133,8 +1139,9 @@
                         ? `<span class="text-gray-400 text-sm">👈 ${hasModules() ? '點中間的套餐或單點' : '點中間的單點品項'}</span>`
                         : '<span class="text-gray-700 text-sm">—</span>';
                 }
-                // 第 1 關：正確的餐點亮綠框，不需要的餐點亮紅框
-                const okJ = hasModules() ? null : matchSingles(o, trays[i]).okJ;
+                // 正確的餐點亮綠框，不需要的餐點亮紅框 (套餐逐項標示)
+                const ok = matchTray(o, trays[i], modules).ok;
+                const okCls = (good) => good ? ' got' : ' bad';
                 trays[i].forEach((p, j) => {
                     const chip = document.createElement('span');
                     if (p.type === 'module') {
@@ -1142,10 +1149,10 @@
                         const mod = modules.find(m => m.id === p.ref);
                         chip.className = 'tray-chip mod-group';
                         chip.innerHTML = `<span class="mod-badge">${esc(p.ref)}</span>` +
-                            (mod ? mod.items.map(it => `<span class="chip cov">${esc(itemName(it))}</span>`).join('') : '');
+                            (mod ? mod.items.map((it, n) => `<span class="chip cov${okCls(ok[j][n])}">${esc(itemName(it))}</span>`).join('') : '');
                     } else {
                         // 單點：灰色實線框，沒有紅框
-                        chip.className = 'tray-chip chip' + (okJ ? (okJ.has(j) ? ' got' : ' bad') : '');
+                        chip.className = 'tray-chip chip' + okCls(ok[j]);
                         chip.textContent = itemName(p.ref);
                     }
                     if (serving) {
