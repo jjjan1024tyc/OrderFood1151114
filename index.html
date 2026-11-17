@@ -436,7 +436,7 @@
         // 第 1～3 關：已經解鎖、而且還沒按「進入下一關」關閉的關卡都可以操作 (先跳關的關卡之後還能回來做)
         const closed = { 1: false, 2: false, 3: false };
         const isEditable = () => stage === QUIZ_STAGE ? !quiz.submitted : (stage <= unlocked && !closed[stage]);
-        const isLockedView = () => (stage === 2 || stage === 3) && unlocked < stage;  // 前一關還沒完成就點開
+        const isLockedView = () => stage === 3 && unlocked < stage;  // 第 2 關還沒完成就點開第 3 關
         const canDefine = () => stage === 2 && isEditable();    // 只有第 2 關可以建立、刪除套餐
         const canServe = () => isEditable() && stage < QUIZ_STAGE;  // 第 1～3 關可以點餐
         const hasModules = () => stage >= 2;                     // 第 1 關沒有套餐
@@ -599,6 +599,12 @@
         // 點標題列的關卡切換查看
         function viewStage(s) {
             if (s === stage) return;
+            // 第 2 關不用先完成第 1 關：第一次點開就直接開始 (第 1 關之後仍可回來完成)
+            if (s === 2 && unlocked < 2) {
+                saveStage();
+                enterStage(2);
+                return;
+            }
             saveStage();
             loadStage(s);
             updateAll();
@@ -1339,6 +1345,9 @@
                     cls = 'bg-green-600 border-green-300 text-white hover:bg-green-500 animate-pulse shadow-[0_0_16px_rgba(34,197,94,0.9)]';
                     status = '▶ 點我進入';
                     onclick = `goNext(${s})`;
+                } else if (s === 2 && unlocked < 2) {
+                    cls = 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-700';
+                    status = '未開始・可直接進入';
                 } else if (s < QUIZ_STAGE && unlocked < s) {
                     cls = 'bg-gray-900 border-gray-700 text-gray-500 hover:bg-gray-800';
                     status = `🔒 先完成第 ${s - 1} 關`;
