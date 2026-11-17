@@ -339,7 +339,7 @@
             { id: 4, items: ['m5', 'm9', 'm19', 'm11'] },
             { id: 5, items: ['m17', 'm2', 'm12'] },
             { id: 6, items: ['m8', 'm12', 'm17'] },
-            { id: 7, items: ['m1', 'm18', 'm12'], fullWithoutModule: true },   // 用不到套餐，第 2 關單點完成也給滿分 3 分
+            { id: 7, items: ['m1', 'm18', 'm12'], fullWithoutModule: true },   // 用不到套餐，第 2 關單點完成也給滿分 4 分
             { id: 8, items: ['m4', 'm20', 'm16'] },
             { id: 9, items: ['m5', 'm9', 'm19'] },
             { id: 10, items: ['m10', 'm2', 'm12'] },
@@ -628,7 +628,9 @@
         function skipTo(target) {
             if (target <= unlocked) return;
             const from = unlocked;
-            const text = `第 ${from} 關還沒完成拿到${STAGE_MAX[from]}分滿分喔！\n待會兒記得要回到第 ${from} 關。\n確定先跳到第 ${target} 關嗎？`;
+            const text = STAGE_MAX[from] > 0
+                ? `第 ${from} 關還沒完成拿到${STAGE_MAX[from]}分滿分喔！\n待會兒記得要回到第 ${from} 關。\n確定先跳到第 ${target} 關嗎？`
+                : `第 ${from} 關還沒完成喔！\n待會兒記得要回到第 ${from} 關。\n確定先跳到第 ${target} 關嗎？`;
             askConfirm(text, () => {
                 if (stage === from) saveStage();
                 for (let n = from + 1; n <= target; n++) enterStage(n, n === target);
@@ -1235,9 +1237,10 @@
             document.getElementById('successBanner').classList.toggle('hidden', state !== 'solved');
 
             // 分數變高時上傳到老師的試算表
-            const pts = stagePoints(stage);
-            if (isEditable() && pts > synced[stage]) {
-                synced[stage] = pts;
+            // (第 1 關不計分，改用完成單數判斷，才會上傳第 1 關的總點擊)
+            const progress = stage === 1 ? doneCount : stagePoints(stage);
+            if (isEditable() && progress > synced[stage]) {
+                synced[stage] = progress;
                 syncScores();
             }
 
@@ -1278,11 +1281,11 @@
         }
 
         // ---------- 計分 (即時) ----------
-        // 第 1 關：每完成一單 1 分 (滿分 15)
-        // 第 2 關：每完成一單，單點完成 1 分、有用套餐完成 3 分 (第 7 單用不到套餐，單點也給 3 分；滿分 45)
+        // 第 1 關：不計分 (體驗只用單點的麻煩)
+        // 第 2 關：每完成一單，單點完成 2 分、有用套餐完成 4 分 (第 7 單用不到套餐，單點也給 4 分；滿分 60)
         // 第 3 關：每完成一單 2 分 (滿分 20)
         // 第 4 關：答對 1 題 7 分、2 題 14 分、全對 20 分
-        const STAGE_MAX = { 1: 15, 2: 45, 3: 20, 4: 20 };
+        const STAGE_MAX = { 1: 0, 2: 60, 3: 20, 4: 20 };
         const synced = { 1: 0, 2: 0, 3: 0 };   // 已上傳的最高分
 
         // 取得某一關的訂單、托盤、套餐 (目前顯示的關卡用畫面上的資料)
@@ -1299,8 +1302,8 @@
         // 某一單的得分
         function orderPoints(s, order, tray, mods) {
             if (statusOf(order, tray, mods) !== 'done') return 0;
-            if (s === 1) return 1;
-            if (s === 2) return (order.fullWithoutModule || tray.some(p => p.type === 'module')) ? 3 : 1;
+            if (s === 1) return 0;
+            if (s === 2) return (order.fullWithoutModule || tray.some(p => p.type === 'module')) ? 4 : 2;
             return 2;
         }
 
@@ -1342,12 +1345,16 @@
                 } else {
                     if (s === QUIZ_STAGE) status = best[4] === null ? '未作答' : `答對 ${best[4]}/${QUIZ_ROWS.length} 題`;
                     else status = `完成 ${stageDoneCount(s)}/${STAGES[s].orders.length}・成功 ${counts[s].ok}`;
-                    cls = pts >= max ? 'bg-yellow-500 border-yellow-300 text-black hover:bg-yellow-400'
-                        : pts > 0 ? 'bg-yellow-500/15 border-yellow-500 text-yellow-300 hover:bg-yellow-500/25'
+                    // 第 1 關不計分：用完成單數判斷按鈕顏色
+                    const full = max === 0 ? stageDoneCount(s) === STAGES[s].orders.length : pts >= max;
+                    const some = max === 0 ? stageDoneCount(s) > 0 : pts > 0;
+                    cls = full ? 'bg-yellow-500 border-yellow-300 text-black hover:bg-yellow-400'
+                        : some ? 'bg-yellow-500/15 border-yellow-500 text-yellow-300 hover:bg-yellow-500/25'
                         : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-700';
                 }
-                const ptsColor = s === readyNext ? 'text-yellow-200' : pts >= max ? 'text-red-600' : 'text-red-500';
-                html += `<button onclick="${onclick}" class="border-2 rounded-lg px-3 py-1 text-[1.05rem] leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}<span class="${ptsColor} ml-1">${pts}/${max}分</span></span><span class="block text-[0.9rem]">${status}</span></button>`;
+                const ptsColor = s === readyNext ? 'text-yellow-200' : (max > 0 && pts >= max) ? 'text-red-600' : 'text-red-500';
+                const ptsText = max === 0 ? '不計分' : `${pts}/${max}分`;
+                html += `<button onclick="${onclick}" class="border-2 rounded-lg px-3 py-1 text-[1.05rem] leading-tight text-center transition-colors whitespace-nowrap ${cls}${ring}"><span class="block font-bold">${s}. ${STAGES[s].name}<span class="${ptsColor} ml-1">${ptsText}</span></span><span class="block text-[0.9rem]">${status}</span></button>`;
             });
             html += `<span class="shrink-0 ml-1 text-red-500 font-black text-[1.6875rem]">總分 ${total} 分</span>`;
             html += `<span class="ml-auto text-[1.125rem] text-gray-500 shrink-0">${lastSolvedStamp}</span>`;
@@ -1574,7 +1581,7 @@
                     setSyncStatus('⚠️ 上傳失敗，下次完成時會再試', 'text-red-400');
                     showMessage('成績上傳失敗：' + (err && err.message ? err.message : '請檢查網路'));
                 })
-                .saveScores({ s1: stagePoints(1), s2: stagePoints(2), s3: stagePoints(3), s4: best[4],
+                .saveScores({ s2: stagePoints(2), s3: stagePoints(3), s4: best[4],
                               c1: counts[1].ok + counts[1].err, c2: counts[2].ok + counts[2].err, c3: counts[3].ok + counts[3].err });
         }
     </script>
