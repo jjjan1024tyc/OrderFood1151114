@@ -75,6 +75,8 @@
             white-space: nowrap;
         }
         .mod-group .chip { margin: 1px 2px; }
+        /* 右欄托盤：底部對齊，單點的下緣和套餐紅框裡餐點的下緣切齊 (紅框下留白 3px＋框線 2px＋內距 1px＋餐點外距 1px) */
+        .tray-box > .tray-chip.chip { margin-bottom: 7px; }
         .mod-badge {
             position: absolute;
             top: -1rem;
@@ -1133,7 +1135,7 @@
                 row.appendChild(num);
 
                 const box = document.createElement('div');
-                box.className = 'flex-1 min-w-0 flex flex-wrap items-center gap-1.5 py-1';
+                box.className = 'flex-1 min-w-0 tray-box flex flex-wrap items-end gap-1.5 py-1';
                 if (trays[i].length === 0) {
                     box.innerHTML = active
                         ? `<span class="text-gray-400 text-sm">👈 ${hasModules() ? '點中間的套餐或單點' : '點中間的單點品項'}</span>`
