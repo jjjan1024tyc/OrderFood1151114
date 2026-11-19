@@ -652,6 +652,7 @@
                 return;
             }
             unlocked = next;
+            flushSync();   // 進入下一關：把還沒上傳的進度送出
             if (next === 2) {
                 // 第 2 關：同樣的 15 單，這次可以建立套餐
                 stageData[2] = { modules: [], trays: TODAY_ORDERS.map(() => []), activeOrder: 0, history: [] };
@@ -1251,12 +1252,12 @@
             document.getElementById('errorBox').classList.toggle('hidden', state !== 'error');
             document.getElementById('successBanner').classList.toggle('hidden', state !== 'solved');
 
-            // 分數變高時上傳到老師的試算表
+            // 有新進度時：完成整關才馬上上傳，其他時候先記下來，由每 60 秒的定時上傳一起送出
             // (第 1 關不計分，改用完成單數判斷，才會上傳第 1 關的總點擊)
             const progress = stage === 1 ? doneCount : stagePoints(stage);
             if (isEditable() && progress > synced[stage]) {
                 synced[stage] = progress;
-                syncScores();
+                requestSync(doneCount === total);
             }
 
             renderScoreboard();
@@ -1552,7 +1553,7 @@
                 quiz.submitted = true;
                 best[4] = QUIZ_ROWS.filter((row, i) => quiz.slots[i] === row.answer).length;
                 stampNow();
-                syncScores();
+                requestSync(true);   // 第 4 關送出：馬上上傳
                 renderQuiz();
                 renderScoreboard();
             }, '送出答案', 'bg-[#759e66] hover:bg-[#5a7d4e]');
@@ -1562,8 +1563,66 @@
         // 只有透過 Google Apps Script 網頁應用程式開啟時才會上傳；
         // 直接開啟 HTML 檔 (或放在 GitHub) 時不會上傳，其他功能照常。
 
-        const hasServer = typeof google !== 'undefined' && !!google.script && !!google.script.run;
+        const hasServer = () => typeof google !== 'undefined' && !!google.script && !!google.script.run;
         let userEmail = '';
+
+        // ---------- 上傳排程：減少上傳次數 + 失敗自動重試 ----------
+        // 全班同時操作時，每單都上傳會塞爆 Apps Script，所以改成：
+        //   1. 完成一關、進入下一關、第 4 關送出時才馬上上傳；其他進度每 60 秒有變化才上傳一次
+        //   2. 同一時間只送一個請求；送出期間又有新進度，等這次送完再送最新的
+        //   3. 失敗時自動重試，等待時間逐次加長 (3、6、12、24、48、60 秒…) 並加上隨機延遲，避免全班同時重試
+        const SYNC_INTERVAL = 60000;
+        let syncDirty = false;      // 有還沒上傳的新進度
+        let syncBusy = false;       // 正在上傳中
+        let syncFails = 0;          // 連續失敗次數
+        let retryTimer = null;      // 等待重試的計時器
+        let failNoticeShown = false;
+
+        // 有新進度；now=true 時馬上上傳，否則等定時上傳
+        function requestSync(now) {
+            syncDirty = true;
+            if (now) flushSync();
+        }
+
+        // 有新進度就上傳 (正在上傳或等待重試時先不送，之後會自動送出最新的)
+        function flushSync() {
+            if (!hasServer() || !userEmail) return;
+            if (!syncDirty || syncBusy || retryTimer) return;
+            sendScores();
+        }
+
+        function sendScores() {
+            syncBusy = true;
+            syncDirty = false;
+            setSyncStatus('☁️ 成績上傳中…', 'text-sky-300');
+            google.script.run
+                .withSuccessHandler(() => {
+                    syncBusy = false;
+                    syncFails = 0;
+                    failNoticeShown = false;
+                    setSyncStatus('☁️ 成績已上傳', 'text-emerald-400');
+                    if (syncDirty) flushSync();   // 上傳期間又有新進度
+                })
+                .withFailureHandler(() => {
+                    syncBusy = false;
+                    syncDirty = true;
+                    syncFails++;
+                    const delay = Math.min(60000, 3000 * Math.pow(2, syncFails - 1)) + Math.random() * 3000;
+                    setSyncStatus(`☁️ 等待上傳…（${Math.round(delay / 1000)} 秒後自動重試）`, 'text-amber-400');
+                    // 連續失敗很多次才提醒一次，不打斷學生作答
+                    if (syncFails >= 5 && !failNoticeShown) {
+                        failNoticeShown = true;
+                        showMessage('成績暫時上傳不了，網頁會自動再試，請繼續作答', 'info');
+                    }
+                    retryTimer = setTimeout(() => { retryTimer = null; flushSync(); }, delay);
+                })
+                .saveScores({ s2: stagePoints(2), s3: stagePoints(3), s4: best[4],
+                              c1: counts[1].ok + counts[1].err, c2: counts[2].ok + counts[2].err, c3: counts[3].ok + counts[3].err });
+        }
+
+        // 定時上傳；切換到別的分頁或關閉網頁前也試著送出
+        setInterval(flushSync, SYNC_INTERVAL);
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSync(); });
 
         function setSyncStatus(text, color) {
             const el = document.getElementById('syncStatus');
@@ -1572,12 +1631,13 @@
         }
 
         function initAccount() {
-            if (!hasServer) return;
+            if (!hasServer()) return;
             document.getElementById('accountInfo').classList.remove('hidden');
             setSyncStatus('讀取帳號中…');
             google.script.run
                 .withSuccessHandler(email => {
                     userEmail = email;
+                    flushSync();   // 取得帳號前就有的進度，現在送出
                     if (email) {
                         document.getElementById('accountEmail').textContent = '👤 ' + email;
                         setSyncStatus('完成每一關後，成績會自動上傳');
@@ -1590,18 +1650,6 @@
                 .getUserEmail();
         }
 
-        function syncScores() {
-            if (!hasServer || !userEmail) return;
-            setSyncStatus('☁️ 成績上傳中…', 'text-sky-300');
-            google.script.run
-                .withSuccessHandler(() => setSyncStatus('☁️ 成績已上傳', 'text-emerald-400'))
-                .withFailureHandler(err => {
-                    setSyncStatus('⚠️ 上傳失敗，下次完成時會再試', 'text-red-400');
-                    showMessage('成績上傳失敗：' + (err && err.message ? err.message : '請檢查網路'));
-                })
-                .saveScores({ s2: stagePoints(2), s3: stagePoints(3), s4: best[4],
-                              c1: counts[1].ok + counts[1].err, c2: counts[2].ok + counts[2].err, c3: counts[3].ok + counts[3].err });
-        }
     </script>
 </body>
 </html>
